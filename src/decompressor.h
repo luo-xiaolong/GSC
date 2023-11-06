@@ -32,6 +32,8 @@
 #include "utils.h"
 
 #include "vint_code.h"
+#include <unordered_map>
+#include <array>
 #define MMAP
 
 #ifdef MMAP
@@ -44,11 +46,14 @@
 
 class Decompressor {
 
-
+    
     DecompressionReader decompression_reader;
+
+    GSC_Params params;
+
     vector<string> v_samples;
     string header;
-    GSC_Params params;
+    
     // size_t num_chunks;
     vector<block_t> fixed_variants_chunk,fixed_variants_chunk_io;
 	vector<vector<uint32_t>> sort_perm,sort_perm_io;
@@ -63,7 +68,12 @@ class Decompressor {
 
     // Range
 
-    // string range;
+    string range;
+    string in_file_name, out_file_name;
+    char compression_level;
+    file_type out_type;
+    bool out_genotypes;
+
     uint32_t start_chunk_id = 0;
     uint32_t end_chunk_id = 0;
     uint32_t cur_chunk_id = 0;
@@ -74,18 +84,28 @@ class Decompressor {
 
     // Output and output settings
     htsFile *out_file = nullptr;
+    vector<htsFile*> split_files; 
+
     bcf_hdr_t * out_hdr = nullptr;
     bcf1_t * rec;
 
+    COutFile out_fam;
+    COutFile out_bim;
+    COutFile out_bed;
+
+    string cur_chrom = "";
+    int cur_file = -1;
 
 
     uint32_t records_to_process;
 
     // uint32_t max_MB_memory;
 
-    // double minAF, maxAF;
+    uint32_t minAC,maxAC;
 
-    // int32_t minAC, maxAC;
+    float minAF, maxAF;
+
+    float min_qual, max_qual; 
 
     // vector<vector<int>> s_perm;
 
@@ -125,10 +145,10 @@ class Decompressor {
     uint8_t *decomp_data_perm = nullptr;
 
     int full_byte_count,trailing_bits;
-    
-    long long * lookup_table_ptr = nullptr;
 
     long long *tmp_arr = nullptr;
+
+    long long * lookup_table_ptr = nullptr;
 
     int fields_pos;
     // string genotype;
@@ -139,11 +159,12 @@ class Decompressor {
     int count = 0;
     vector<vector<field_desc>> all_fields;
     vector<vector<field_desc>> all_fields_io;
+
     // uint32_t no_fields = 0;
     // vector<key_desc> decomp_keys;
     // size_t no_other_fields;
     // int no_keys;
-    // bool out_flag;
+   
     // bool skip_processing;
     std::unordered_map<uint64_t, uint8_t *> done_unique;
 
@@ -152,12 +173,13 @@ class Decompressor {
     alignas(8) uint8_t gt_lookup_table[256][256][8];
     // alignas(8) uint8_t lut1[256][256][8];
     uint8_t map_t256[256];
+    std::unordered_map<char, std::unordered_map<char, std::array<uint8_t, 2>>> bits_lut;
 
     // vector<uint8_t> pt;
-
+    string genetic_distance = "0";
     void initialLut();
     // void initialLut2();
-    void xor_map_table();
+    void initialXORLut();
     void getRangeGT(uint8_t *a, size_t no_rec, string &str);
     void getRangeGT(uint8_t *a,const vector<uint32_t> &rev_perm,size_t no_rec, vector<uint8_t> &str);
     void getSamplesGT(string &str, uint8_t res1, uint8_t res2, int p,int cur_blo ,size_t &standard_block_size);
@@ -172,6 +194,8 @@ class Decompressor {
     void decoded_vector_row(uint64_t vec_id, uint64_t offset, uint64_t v_offset,uint64_t length, int pos, uint8_t *decomp_data);
     
     int decompressAll();
+
+    int BedFormatDecompress();
 
     int decompressRange(const string & range);
 
@@ -219,18 +243,18 @@ class Decompressor {
     // bool SetVariantToRec(variant_desc_t& desc, vector<field_desc>& fields, vector<key_desc> &keys, string_view _my_str, size_t _standard_block_size);
     bool SetVariant(variant_desc_t &desc, vector<uint8_t> &_my_str, size_t _standard_block_size);
     // void decompress();
-
+    bool splitFileWriting(int file_num);
     bool OpenForWriting();
-
+    
     void setMemoryUsage();
-
+    int initOutSplitFile();
     int initOut();
-
-    int initSample(vector<string>& v_samples);   
-
-
+    void WriteBEDMagicNumbers();
+    int analyzeInputSamples(vector<string>& v_samples);   
+    bool initDecompression(DecompressionReader &decompression_reader);
+    bool Close();
     // bool decompress_meta(vector<uint8_t> &compress_v_samples,vector<uint8_t>& compress_v_header);
-    bool initRange(uint32_t &start_chunk_id,uint32_t &end_chunks);
+    bool analyzeInputRange(uint32_t &start_chunk_id,uint32_t &end_chunks);
     void calculate_start_position(int &_start_block,int &_start_position);
     void calculate_end_position(int &_end_block,int &_end_position);
 
@@ -242,7 +266,7 @@ public:
     Decompressor()
 
     {
-        // out_flag = true;
+       
         // skip_processing = true;
         // // compression_level = '1';
 
@@ -280,25 +304,26 @@ public:
     {
 
         params = _params;
-        // out_flag = true;
-        // skip_processing = true;
-        // in_file_name = params.in_file_name;
-
-        // compression_level = params.compression_level;
-
-        // out_type = params.out_type;
-
-        // out_file_name = params.out_file_name;
-
-        // out_samples_name = params.out_samples_name;
         
-        // out_samples_file_name = params.out_samples_file_name;
+        // skip_processing = true;
 
-        // out_file_flag = params.out_file_flag;
+        in_file_name = params.in_file_name;
 
-        // out_ohter_fields = params.out_ohter_fields;
+        compression_level = params.compression_level;
 
-        // max_block_num = params.max_block_num;
+        out_type = params.out_type;
+
+        out_file_name = params.out_file_name;
+
+        // // out_samples_name = params.out_samples_name;
+        
+        // // out_samples_file_name = params.out_samples_file_name;
+
+        // // out_file_flag = params.out_file_flag;
+
+        // // out_ohter_fields = params.out_ohter_fields;
+
+        // // max_block_num = params.max_block_num;
 
         // samples_to_decompress = params.samples;
 
@@ -306,19 +331,23 @@ public:
 
         // MB_memory = params.MB_memory;
 
-        // range = params.range;
+        range = params.range;
 
-        // out_genotypes = params.out_genotypes;
+        out_genotypes = params.out_genotypes;
 
         // records_to_process = params.records_to_process;
 
-        // minAF = params.minAF;
+        minAF = params.minAF;
 
-        // maxAF = params.maxAF;
+        maxAF = params.maxAF;
 
-        // minAC = params.minAC;
+        minAC = params.minAC;
 
-        // maxAC = params.maxAC;
+        maxAC = params.maxAC;
+
+        min_qual = params.min_qual;
+        
+        max_qual = params.max_qual;
 
         for (int i = 0; i < 8; ++i)
             perm_lut8[i] = 1 << (7 - i);
@@ -329,6 +358,24 @@ public:
 	    sort_perm_io.reserve(no_variants_in_buf);
         decompress_gt_indexes_io.reserve(no_variants_in_buf);
         all_fields.reserve(no_variants_in_buf);
+        {
+            bits_lut['0']['0'] = {1, 1};
+            bits_lut['0']['1'] = {0, 1};
+            bits_lut['0']['2'] = {1, 1};
+            bits_lut['0']['.'] = {1, 0};
+            bits_lut['1']['0'] = {0, 1};
+            bits_lut['1']['1'] = {0, 0};
+            bits_lut['1']['2'] = {0, 1};
+            bits_lut['1']['.'] = {1, 0};
+            bits_lut['2']['0'] = {1, 1};
+            bits_lut['2']['1'] = {0, 1};
+            bits_lut['2']['2'] = {1, 1};
+            bits_lut['2']['.'] = {1, 0};
+            bits_lut['.']['0'] = {1, 0};
+            bits_lut['.']['1'] = {1, 0};
+            bits_lut['.']['2'] = {1, 0};
+            bits_lut['.']['.'] = {1, 0};
+        }
 
     }
 
@@ -354,18 +401,10 @@ public:
         if(sampleIDs)
 
             delete [] sampleIDs;
-        if(out_hdr){
-            bcf_hdr_destroy(out_hdr);
-            out_hdr = nullptr;
-        }
-        if (out_file)
-        {
-            hts_close(out_file);
-            out_file = nullptr;
-        }
-        if(rec){
-            bcf_destroy1(rec);
-        }
+
+        
+        
+        
 
     }
     // bool getChrom();

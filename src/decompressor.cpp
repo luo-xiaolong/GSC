@@ -6,13 +6,13 @@ using namespace std::chrono;
 
 
 
-bool Decompressor::initRange(uint32_t & start_chunk_id,uint32_t & end_chunk_id){
+bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_chunk_id){
 
     size_t prev_chrom_size;
     bool query_flag = false;
 
     // cout << "Begin to extract the genotype sparse matrix" << endl;
-    if (params.range == "")
+    if (range == "")
     {
         
         for (size_t i = 0; i < decompression_reader.d_where_chrom.size(); i++)
@@ -29,7 +29,7 @@ bool Decompressor::initRange(uint32_t & start_chunk_id,uint32_t & end_chunk_id){
         std::regex pattern(R"(^(\w+)(?::(-?\d+))?(?:,(-?\d+))?:?,?$)");
         std::smatch matches;
         std::string cur_query_chrom;
-        if (std::regex_match(params.range, matches, pattern)) {
+        if (std::regex_match(range, matches, pattern)) {
             cur_query_chrom = matches[1].str();
             if(matches[2].matched){
                 range_1 = std::stoi(matches[2].str());
@@ -57,12 +57,12 @@ bool Decompressor::initRange(uint32_t & start_chunk_id,uint32_t & end_chunk_id){
 
         }
 
-        // string cur_query_chrom = params.range.substr(0, params.range.find(':'));
-        // auto curr_pos = params.range.find(':');
-        // string_view cur_query_chrom(params.range.c_str(),curr_pos);
+        // string cur_query_chrom = range.substr(0, range.find(':'));
+        // auto curr_pos = range.find(':');
+        // string_view cur_query_chrom(range.c_str(),curr_pos);
         
         // try {
-        //     string cur_range = params.range.substr(curr_pos + 1);
+        //     string cur_range = range.substr(curr_pos + 1);
             
         //     curr_pos = cur_range.find(',');
         //     if(curr_pos == string::npos){
@@ -138,47 +138,11 @@ bool Decompressor::initRange(uint32_t & start_chunk_id,uint32_t & end_chunk_id){
     }
     return 1;
 }
-//*************************************************************************************************************************************
-// Official Decompress Program Entry
-bool Decompressor::decompressProcess()
-{
-    MyBarrier  my_barrier(3);
-    
-    decompression_reader.SetNoThreads(params.no_threads);
-    // unique_ptr<CompressedFileLoading> cfile(new CompressedFileLoading());
-    if(!decompression_reader.OpenReading(params.in_file_name))
-        return false;
-    if(params.compress_all){
-        if(!decompression_reader.OpenReadingPart2(params.in_file_name))
-            return false;
-    }
-    decompression_reader.decompress_meta(v_samples, header);
-    
-    if(initSample(v_samples)) // Retrieving sample name.
-        return false;
-    // cout<<"Sample size: "<<v_samples.size()<<endl;
+bool Decompressor::initDecompression(DecompressionReader &decompression_reader){
+
     standard_block_size = decompression_reader.n_samples *(uint32_t)decompression_reader.ploidy;
     max_stored_unique = standard_block_size*2;
 
-    if(!OpenForWriting())
-        return false;
-    initOut();
-
-    rrr_rank_zeros_bit_vector[0] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_zeros_bit_vector[0]);
-    rrr_rank_zeros_bit_vector[1] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_zeros_bit_vector[1]);
-    rrr_rank_copy_bit_vector[0] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_copy_bit_vector[0]);
-    rrr_rank_copy_bit_vector[1] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_copy_bit_vector[1]);
-
-
-
-    if (params.samples == ""){
-        decomp_data = new uint8_t[decompression_reader.vec_len * 2];
-        decomp_data_perm = new uint8_t[decompression_reader.vec_len * 2];
-        zeros_only_vector = new uint8_t[decompression_reader.vec_len]();
-    }
-    
-
-    
     if(standard_block_size < 1024)
     {
         chunk_size = CHUNK_SIZE1;
@@ -196,20 +160,15 @@ bool Decompressor::decompressProcess()
         chunk_size = standard_block_size;
     }
     params.no_blocks = chunk_size/standard_block_size;
-
-
-    if(!initRange(start_chunk_id,end_chunk_id)){
-        return false;
+    rrr_rank_zeros_bit_vector[0] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_zeros_bit_vector[0]);
+    rrr_rank_zeros_bit_vector[1] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_zeros_bit_vector[1]);
+    rrr_rank_copy_bit_vector[0] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_copy_bit_vector[0]);
+    rrr_rank_copy_bit_vector[1] = sdsl::rrr_vector<>::rank_1_type(&decompression_reader.rrr_copy_bit_vector[1]);
+    if (params.samples == ""){
+        decomp_data = new uint8_t[decompression_reader.vec_len * 2];
+        decomp_data_perm = new uint8_t[decompression_reader.vec_len * 2];
+        zeros_only_vector = new uint8_t[decompression_reader.vec_len]();
     }
-
-    if(!decompression_reader.setStartChunk(start_chunk_id)){
-        return false;
-    }   
-    cur_chunk_id = start_chunk_id;
-    initialLut();
-    int fmt_id = bcf_hdr_id2int(out_hdr,BCF_DT_ID,"GT");
-    bcf_enc_int1(&str, fmt_id);
-	bcf_enc_size(&str, decompression_reader.ploidy, BCF_BT_INT8);
     int no_haplotypes = standard_block_size;
     if (params.samples != ""){
         no_haplotypes = smpl.no_samples * decompression_reader.ploidy;
@@ -250,51 +209,106 @@ bool Decompressor::decompressProcess()
         tmp_arr = new long long[full_byte_count];  
         
     }
-    char *tmp;
-    str.m = str.l + no_haplotypes + 1;
+    initialXORLut();
+    initialLut();
+    if(out_type != file_type::BED_File){
+        int fmt_id = bcf_hdr_id2int(out_hdr,BCF_DT_ID,"GT");
+        bcf_enc_int1(&str, fmt_id);
+        bcf_enc_size(&str, decompression_reader.ploidy, BCF_BT_INT8);
+        char *tmp;
+        str.m = str.l + no_haplotypes + 1;
+            
+        kroundup32(str.m);
+
+        if ((tmp = (char*)realloc(str.s, str.m)))
+            str.s = tmp;
+        else
+            exit(8);
         
-    kroundup32(str.m);
-
-    if ((tmp = (char*)realloc(str.s, str.m)))
-        str.s = tmp;
-    else
-        exit(8);
+        str.l = 3;
+    }
     
-    str.l = 3;
-
+    return true;
+}
+//*************************************************************************************************************************************
+// Official Decompress Program Entry
+bool Decompressor::decompressProcess()
+{
+    MyBarrier  my_barrier(3);
     
+    decompression_reader.SetNoThreads(params.no_threads);
+    // unique_ptr<CompressedFileLoading> cfile(new CompressedFileLoading());
+    if(!decompression_reader.OpenReading(in_file_name))
+        return false;
+    if(params.compress_mode == compress_mode_t::lossless_mode){
+        if(!decompression_reader.OpenReadingPart2(in_file_name))
+            return false;
+    }
+    
+    decompression_reader.decompress_meta(v_samples, header);
+    
+    if(analyzeInputSamples(v_samples)) // Retrieving sample name.
+        return false;
+
+
+    if(params.split_flag){
+
+        if(!splitFileWriting(static_cast<int>(decompression_reader.d_where_chrom.size())))
+            return false;
+        initOutSplitFile();
+    }else{
+        if(!OpenForWriting())
+            return false;
+        initOut();
+    }
+
+    initDecompression(decompression_reader);
+    
+    if(!analyzeInputRange(start_chunk_id,end_chunk_id)){
+        return false;
+    }
+
+    if(!decompression_reader.setStartChunk(start_chunk_id)){
+        return false;
+    } 
+    cur_chunk_id = start_chunk_id;
     unique_ptr<thread> decompress_thread(new thread([&]{
         
         while(cur_chunk_id < end_chunk_id){
             my_barrier.count_down_and_wait();
             my_barrier.count_down_and_wait();
             initalIndex();
-            if(params.compress_all){
+            if(out_type == file_type::BED_File){
+                BedFormatDecompress();
                 
-                uint32_t no_actual_varians =  decompression_reader.actual_varians[cur_chunk_id-1];
+            }else{
+                if(params.compress_mode == compress_mode_t::lossless_mode){
+                    
+                    uint32_t no_actual_varians =  decompression_reader.actual_varians[cur_chunk_id-1];
 
-                decompressAll();
+                    decompressAll();
 
-                for(uint32_t i = 0; i < no_actual_varians; ++i)
-                    for(size_t j = 0; j < decompression_reader.keys.size(); ++j){
-                        if(all_fields_io[i][j].data_size)
-                        {
-                            delete[] all_fields_io[i][j].data;
-                            all_fields_io[i][j].data = nullptr;
-                            all_fields_io[i][j].data_size = 0;
+                    for(uint32_t i = 0; i < no_actual_varians; ++i)
+                        for(size_t j = 0; j < decompression_reader.keys.size(); ++j){
+                            if(all_fields_io[i][j].data_size)
+                            {
+                                delete[] all_fields_io[i][j].data;
+                                all_fields_io[i][j].data = nullptr;
+                                all_fields_io[i][j].data_size = 0;
+                            }
+                            else
+                                all_fields_io[i][j].data = nullptr;
+
                         }
-                        else
-                            all_fields_io[i][j].data = nullptr;
-
-				    }
-                all_fields_io.clear();
-                
-            }
-            else{
-                if (params.samples == "")
-                    decompressRange(params.range);
-                else
-                    decompressSampleSmart(params.range);
+                    all_fields_io.clear();
+                    
+                }
+                else{
+                    if (params.samples == "")
+                        decompressRange(range);
+                    else
+                        decompressSampleSmart(range);
+                }
             }
             fixed_variants_chunk_io.clear();
             sort_perm_io.clear();
@@ -311,7 +325,7 @@ bool Decompressor::decompressProcess()
                 
                 break;
             }
-            if(params.compress_all){
+            if(params.compress_mode == compress_mode_t::lossless_mode){
 
                 uint32_t no_actual_varians =  decompression_reader.actual_varians[cur_chunk_id];
                 
@@ -336,7 +350,7 @@ bool Decompressor::decompressProcess()
 		swap(fixed_variants_chunk, fixed_variants_chunk_io);
         swap(sort_perm, sort_perm_io);
         swap(decompress_gt_indexes, decompress_gt_indexes_io);
-        if(params.compress_all){
+        if(params.compress_mode == compress_mode_t::lossless_mode){
             swap(all_fields, all_fields_io);
         }
         start_chunk_actual_pos = decompression_reader.getActualPos(cur_chunk_id);
@@ -350,17 +364,44 @@ bool Decompressor::decompressProcess()
     
     process_thread->join();
     decompress_thread->join();
-
-    if(params.compress_all)
+    if(params.compress_mode == compress_mode_t::lossless_mode)
         decompression_reader.close();
-    if(str.m)
-        free(str.s);
-    if(tmp_arr)
-        delete[] tmp_arr;
-    
+    Close();
     return true;
 }
+bool Decompressor::Close(){
 
+    if(out_type == file_type::BED_File){
+        out_fam.Close();
+        out_bed.Close();
+        out_bim.Close();
+    }else{
+        if(out_hdr){
+            bcf_hdr_destroy(out_hdr);
+            out_hdr = nullptr;
+        }
+        if (out_file)
+        {
+            hts_close(out_file);
+            out_file = nullptr;
+        }
+        if(params.split_flag){
+            if(split_files[cur_file]){
+                hts_close(split_files[cur_file]);
+                split_files[cur_file] = nullptr;            
+            }
+        }
+
+        if(rec){
+            bcf_destroy1(rec);
+        }
+        if(str.m)
+            free(str.s);
+        if(tmp_arr)
+            delete[] tmp_arr;
+    }
+    return true;
+}
 // *****************************************************************************************************************
 // bool Decompressor::createSamplesNameFile(vector<string> &v_samples)
 // {
@@ -385,7 +426,10 @@ bool Decompressor::decompressProcess()
 //     }
 //     return true;
 // }
-void Decompressor::xor_map_table(){
+
+// 建立异或表
+// *****************************************************************************************************************
+void Decompressor::initialXORLut(){
 
     uint8_t cur_xor_result = 0;
     uint8_t temp = 0;
@@ -399,11 +443,51 @@ void Decompressor::xor_map_table(){
     }
 
 }
-
+// *****************************************************************************************************************
+// void Decompressor::initialLut1()
+// {
+    
+//     uint8_t mask;
+//     for (int c = 0; c < 8; c++)
+//     {
+//         mask = 0x80 >> c;
+//         for (int i = 0; i < 256; i++)
+//         {
+//             if (i & mask)
+//             {
+//                 for (int j = 0; j < 256; j++)
+//                 {
+//                     if (j & mask) // 11
+//                     {
+//                         gt_lookup_table[i][j][c] = '0';
+//                     }
+//                     else // 10
+//                     {
+//                         gt_lookup_table[i][j][c] = '.';
+//                     }
+//                 }
+//             }
+//             else
+//             {
+//                 for (int j = 0; j < 256; j++)
+//                 {
+//                     if (j & mask) // 01
+//                     {
+//                         gt_lookup_table[i][j][c] = '1';
+//                     }
+//                     else // 00
+//                     {
+//                         gt_lookup_table[i][j][c] = '0';
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 // *****************************************************************************************************************
 void Decompressor::initialLut()
 {
-    xor_map_table();
+    // xor_map_table();
     uint8_t mask;
     for (int c = 0; c < 8; c++)
     {
@@ -530,7 +614,7 @@ void Decompressor::appendVCF(variant_desc_t &_desc, vector<uint8_t> &_my_str, si
     vcf_parse(&s, out_hdr, rec);
     rec->pos = (int32_t)(_desc.pos - 1);
   
-    if (params.out_genotypes)
+    if (out_genotypes)
     {
         if(count <= INT8_MAX && count > INT8_MIN+1){
             vector<int8_t> gt_arr(_no_haplotypes);
@@ -571,8 +655,25 @@ void Decompressor::appendVCF(variant_desc_t &_desc, vector<uint8_t> &_my_str, si
             bcf_update_genotypes(out_hdr, rec, gt_arr.data(), _no_haplotypes);
         }
     }
+    if(params.split_flag){
 
-    bcf_write(out_file, out_hdr, rec);
+        if(_desc.chrom != cur_chrom){
+            if(cur_file != -1 ){
+                if (split_files[cur_file])
+                {
+                    hts_close(split_files[cur_file]);
+                    split_files[cur_file] = nullptr;
+                }
+            }
+            cur_chrom = _desc.chrom;
+            cur_file++;
+            
+        }
+        
+        bcf_write1(split_files[cur_file], out_hdr, rec);
+    }else
+        bcf_write1(out_file, out_hdr, rec);
+    // bcf_write(out_file, out_hdr, rec);
 
 }
 // // *****************************************************************************************************************
@@ -752,11 +853,24 @@ void Decompressor::appendVCFToRec(variant_desc_t &_desc, vector<uint8_t> &_genot
             }
         }
     }
-    
-    bcf_write1(out_file, out_hdr, rec);
+    if(params.split_flag){
 
-
-
+        if(_desc.chrom != cur_chrom){
+            if(cur_file != -1 ){
+                if (split_files[cur_file])
+                {
+                    hts_close(split_files[cur_file]);
+                    split_files[cur_file] = nullptr;
+                }
+            }
+            cur_chrom = _desc.chrom;
+            cur_file++;
+            
+        }
+        
+        bcf_write1(split_files[cur_file], out_hdr, rec);
+    }else
+        bcf_write1(out_file, out_hdr, rec);
 }
 // 
 bool Decompressor::SetVariantToRec(variant_desc_t &desc, vector<field_desc> &fields, vector<key_desc> &keys, vector<uint8_t> &_my_str, size_t _standard_block_size)
@@ -857,6 +971,180 @@ bool Decompressor::SetVariant(variant_desc_t &desc, vector<uint8_t> &_my_str, si
     }
     
     return true;
+}
+//*****************************************************************************************************************
+int Decompressor::BedFormatDecompress(){
+
+    done_unique.clear();
+    stored_unique.clear();
+    uint32_t cur_block_id = 0;
+    uint32_t c_out_line = 0;
+    uint32_t no_var = 0;
+    uint32_t start_var = 0;
+    int vec1_start,vec2_start = decompression_reader.vec_len;
+    // fields_pos  = 0;
+    vector<uint8_t> my_str(standard_block_size);
+    vector<uint32_t> rev_perm(standard_block_size);
+    
+    uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
+                rrr_rank_zeros_bit_vector[1](start_chunk_actual_pos) -rrr_rank_copy_bit_vector[0](start_chunk_actual_pos) - 
+                rrr_rank_copy_bit_vector[1](start_chunk_actual_pos);
+
+    no_var = end_chunk_actual_pos - start_chunk_actual_pos;
+
+    size_t cur_var;
+
+    for (cur_var = start_var; cur_var + standard_block_size <= no_var; cur_var += standard_block_size )
+    {
+        
+        cur_block_id = cur_var / standard_block_size;
+        for(size_t i = 0; i < standard_block_size; i++){
+            
+            vec2_start = decompression_reader.vec_len;
+            fill_n(decomp_data, decompression_reader.vec_len*2, 0);
+            decoded_vector_row(cur_vec_id++, 0, curr_non_copy_vec_id_offset, decompression_reader.vec_len, 0, decomp_data_perm);
+            decoded_vector_row(cur_vec_id++, 0, curr_non_copy_vec_id_offset, decompression_reader.vec_len, vec2_start, decomp_data_perm);
+
+            decode_perm_rev(vec2_start, sort_perm_io[cur_block_id], decomp_data_perm, decomp_data);
+            
+            
+            for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
+            {
+                lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
+                tmp_arr[vec1_start] = *lookup_table_ptr;
+            }
+            memcpy(my_str.data(), tmp_arr, full_byte_count << 3);
+            if(trailing_bits)
+            {
+                memcpy(my_str.data() + (full_byte_count << 3), gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start]], trailing_bits);
+                
+            }   
+
+
+
+            // 优化1: 避免重复搜索
+            // size_t comma_pos = desc.alt.find(",");
+            // std::string desc_alt = (comma_pos == std::string::npos) ? desc.alt : desc.alt.substr(0, comma_pos);
+
+
+            variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[i];
+            string desc_pos = to_string(desc.pos);
+            size_t comma_pos = desc.alt.find(",");
+            string desc_alt = comma_pos == string::npos ? desc.alt : desc.alt.substr(0, comma_pos);
+            string bim_line = desc.chrom + "\t" + desc.id + "\t" + genetic_distance + "\t" + desc_pos + "\t" + desc_alt + "\t" + desc.ref + "\n";
+            
+            out_bim.Write(bim_line.c_str(), bim_line.size());
+            for(int i = 0; i < (int)standard_block_size; i += 2){
+                char first = my_str[i];
+                char second = my_str[i + 1];
+                out_bed.PutBit(bits_lut[first][second][0]);
+                out_bed.PutBit(bits_lut[first][second][1]);
+                // if(first == '0' &&  second == '0'){
+                    
+                //     out_bed.PutBit(1);
+                //     out_bed.PutBit(1);
+                // }
+                // else if((first == '0' &&  second == '1') || (first == '1' &&  second == '0')){
+                //     out_bed.PutBit(0);
+                //     out_bed.PutBit(1);
+                // }
+                // else if(first == '1' &&  second == '1'){
+                //     out_bed.PutBit(0);
+                //     out_bed.PutBit(0);
+                // }
+                // else if(first == '.' ||  second == '.'){
+                    
+                //     out_bed.PutBit(1);
+                    
+                //     out_bed.PutBit(0);
+                // }
+            } 
+            out_bed.FlushPartialByteBuffer();
+          
+            
+        
+        }
+    }
+    if(no_var % standard_block_size)
+    {
+        cur_block_id = cur_var / standard_block_size;            
+        reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+        
+        for(;cur_var < no_var;++cur_var){
+            vec2_start = decompression_reader.vec_len;
+            fill_n(decomp_data, decompression_reader.vec_len*2, 0);
+            decoded_vector_row(cur_vec_id++, 0, curr_non_copy_vec_id_offset, decompression_reader.vec_len, 0, decomp_data_perm);
+            decoded_vector_row(cur_vec_id++, 0, curr_non_copy_vec_id_offset, decompression_reader.vec_len, vec2_start, decomp_data_perm);
+            // if(!(no_var%standard_block_size))
+            //     decode_perm_rev(vec2_start, sort_perm_io[cur_block_id], decomp_data_perm, decomp_data);
+            // else
+            //     memcpy(decomp_data, decomp_data_perm, decompression_reader.vec_len*2);
+
+            // for(int i = 0;i<rev_perm.size();i++)
+            //     cout<<rev_perm[i]<<" ";
+            // cout<<endl;
+            decode_perm_rev(vec2_start, rev_perm, decomp_data_perm, decomp_data);
+            for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
+            {
+                lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
+                tmp_arr[vec1_start] = *lookup_table_ptr;
+            }
+            memcpy(my_str.data(), tmp_arr, full_byte_count << 3);
+            if(trailing_bits)
+            {
+                memcpy(my_str.data() + (full_byte_count << 3), gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start]], trailing_bits);
+                
+            } 
+                
+            c_out_line = cur_var % standard_block_size;
+
+            variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[c_out_line];
+
+            string desc_pos = to_string(desc.pos);
+            string desc_alt = desc.alt.find(",") == string::npos ? desc.alt : desc.alt.substr(0,desc.alt.find(","));
+            string bim_line = desc.chrom + "\t" + desc.id + "\t" + genetic_distance + "\t" + desc_pos + "\t" + desc_alt + "\t" + desc.ref + "\n";
+            out_bim.Write(bim_line.c_str(), bim_line.size());
+            for(int i = 0; i < (int)standard_block_size; i += 2){
+                char first = my_str[i];
+                char second = my_str[i + 1];
+                out_bed.PutBit(bits_lut[first][second][0]);
+                out_bed.PutBit(bits_lut[first][second][1]);
+                // if(first == '0' &&  second == '0'){
+                //     out_bed.PutBit(1);
+                //     out_bed.PutBit(1);
+                // }
+                // else if(first == '0' &&  second == '1' || first == '1' &&  second == '0'){
+                //     out_bed.PutBit(0);
+                //     out_bed.PutBit(1);
+                // }
+                // else if(first == '1' &&  second == '1'){
+                //     out_bed.PutBit(0);
+                //     out_bed.PutBit(0);
+                // }
+                // else if(first == '.' ||  second == '.'){
+                //     out_bed.PutBit(1);
+                //     out_bed.PutBit(0);
+                // }
+            } 
+            out_bed.FlushPartialByteBuffer();
+            // SetVariantToRec(desc, all_fields_io[fields_pos], decompression_reader.keys, my_str, standard_block_size);
+        }
+    }
+    // if(cur_chunk_id == end_chunk_id && count){
+      
+    //     appendVCFToRec(temp_desc, genotype, static_cast<uint32_t>(standard_block_size), temp_fields, decompression_reader.keys);
+    // }
+
+    cout<< cur_chunk_id << "\r";
+    fflush(stdout);
+
+    for (auto &it : done_unique)
+        delete[] it.second;
+
+    done_unique.clear();
+
+    return 0;
+    
 }
 
 //*****************************************************************************************************************
@@ -977,7 +1265,7 @@ int Decompressor::decompressRange(const string &range)
     uint32_t no_var = 0;
     uint32_t start_var = 0;
     int vec1_start,vec2_start;
-
+    bool skip_processing = false;
     vector<uint32_t> rev_perm(standard_block_size);
     vector<uint8_t> my_str(standard_block_size);
 
@@ -1004,6 +1292,7 @@ int Decompressor::decompressRange(const string &range)
                 for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
                 {
                     lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
+
                     tmp_arr[vec1_start] = *lookup_table_ptr;
                 }
                 memcpy(my_str.data(), tmp_arr, full_byte_count << 3);
@@ -1012,6 +1301,7 @@ int Decompressor::decompressRange(const string &range)
                     memcpy(my_str.data() + (full_byte_count << 3), gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start]], trailing_bits);
                     
                 }
+            
                 // string my_str = "";
                 // getRangeGT(decomp_data, standard_block_size, my_str);
                 // for(int i = 0;i<(int)decompression_reader.vec_len*2;i++)
@@ -1020,6 +1310,7 @@ int Decompressor::decompressRange(const string &range)
                 // c_out_line = i;
 
                 variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[i];
+                
                 if(params.out_AC_AN){
                     
                     uint32_t AN = standard_block_size;
@@ -1027,7 +1318,7 @@ int Decompressor::decompressRange(const string &range)
                                         [](char c)
                                         { return c == '1' || c == '2' || c == '.'; });
                     
-                    bool skip_processing = ((float)AC / AN > params.maxAF || (float)AC / AN < params.minAF || AC > params.maxAC || AC < params.minAC);
+                    skip_processing = ((float)AC / AN > maxAF || (float)AC / AN < minAF || AC > maxAC || AC < minAC);
 
                     if (skip_processing)
                         continue;
@@ -1035,7 +1326,12 @@ int Decompressor::decompressRange(const string &range)
                     desc.info = "AN=" + std::to_string(AN) + ";AC=" + std::to_string(AC);
 
                     
-                }    
+                } 
+                skip_processing = (atoi(desc.qual.c_str()) > max_qual || atoi(desc.qual.c_str()) < min_qual || !(params.out_id == desc.id || params.out_id.empty()));
+
+                if (skip_processing)
+                    continue;  
+
                 SetVariant(desc, my_str, standard_block_size);
             
             }
@@ -1077,7 +1373,6 @@ int Decompressor::decompressRange(const string &range)
                 // getRangeGT(decomp_data_perm,rev_perm,standard_block_size, my_str);
                     
                 c_out_line = cur_var % standard_block_size;
-
                 variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[c_out_line];
                 if(params.out_AC_AN){
                     
@@ -1086,7 +1381,7 @@ int Decompressor::decompressRange(const string &range)
                                         [](char c)
                                         { return c == '1' || c == '2' || c == '.'; });
                     
-                    bool skip_processing = ((float)AC / AN > params.maxAF || (float)AC / AN < params.minAF || AC > params.maxAC || AC < params.minAC);
+                    skip_processing = ((float)AC / AN > maxAF || (float)AC / AN < minAF || AC > maxAC || AC < minAC);
 
                     if (skip_processing)
                         continue;
@@ -1094,7 +1389,16 @@ int Decompressor::decompressRange(const string &range)
                     desc.info = "AN=" + std::to_string(AN) + ";AC=" + std::to_string(AC);
 
                     
-                }    
+                }   
+                
+                skip_processing = (atoi(desc.qual.c_str()) > max_qual || atoi(desc.qual.c_str()) < min_qual || !(params.out_id == desc.id || params.out_id.empty()));
+
+                if (skip_processing)
+                    continue;
+                // for(int i = 0; i < standard_block_size; i++){
+                //     cout << my_str[i] << " ";
+                // }
+                // cout << endl; 
                 SetVariant(desc, my_str, standard_block_size);
             }
         }
@@ -1174,18 +1478,22 @@ int Decompressor::decompressRange(const string &range)
 
             c_out_line = cur_var % standard_block_size;
             variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[c_out_line];
-            
             if(params.out_AC_AN){
                 uint32_t AN = standard_block_size;
 
                 uint32_t AC = std::count_if(my_str.begin(), my_str.end(),
                                     [](char c)
                                     { return c == '1' || c == '2' || c == '.'; });
-                bool skip_processing = ((float)AC / AN > params.maxAF || (float)AC / AN < params.minAF || AC > params.maxAC || AC < params.minAC);
+                skip_processing = ((float)AC / AN > maxAF || (float)AC / AN < minAF || AC > maxAC || AC < minAC);
                 if (skip_processing)
                     continue;
                 desc.info = "AN=" + std::to_string(AN) + ";AC=" + std::to_string(AC);
             }
+
+            skip_processing = (atoi(desc.qual.c_str()) > max_qual || atoi(desc.qual.c_str()) < min_qual || !(params.out_id == desc.id || params.out_id.empty()));
+
+            if (skip_processing)
+                continue;
             SetVariant(desc, my_str, standard_block_size);
             
         }
@@ -1209,6 +1517,8 @@ int Decompressor::decompressRange(const string &range)
 // // *****************************************************************************************************************
 int Decompressor::decompressSampleSmart(const string &range)
 {
+    
+    
     uint32_t no_var;
 
     size_t cur_block_id;
@@ -1226,7 +1536,10 @@ int Decompressor::decompressSampleSmart(const string &range)
     uint32_t no_haplotypes = smpl.no_samples * decompression_reader.ploidy;
 
     std::vector<std::pair<uint32_t, uint32_t>> whichByte_whereInRes(no_haplotypes + 1); // +1 for guard
+
     bool is_unique = false;
+    
+    bool skip_processing = false;
 
     uint32_t unique_pos = 0, unique_pos_first_in_block = 0;
 
@@ -1262,6 +1575,7 @@ int Decompressor::decompressSampleSmart(const string &range)
     uint64_t prev_chr_zeros_copy = rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) + rrr_rank_zeros_bit_vector[1](start_chunk_actual_pos) +
                                        rrr_rank_copy_bit_vector[0](start_chunk_actual_pos) + rrr_rank_copy_bit_vector[1](start_chunk_actual_pos);
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos*2 - prev_chr_zeros_copy;
+    
     if (range != "")
     {
 
@@ -1283,10 +1597,9 @@ int Decompressor::decompressSampleSmart(const string &range)
         }
         
         cur_vec_id = (start_var + start_chunk_actual_pos) * 2;
-
+  
         for (size_t cur_var = start_var;cur_var < no_var ; cur_var++)
         {
-            
             cur_block_id = cur_var / standard_block_size;
 
             if (cur_block_id != prev_block_id) // Get perm and find out which bytes need decoding
@@ -1359,6 +1672,9 @@ int Decompressor::decompressSampleSmart(const string &range)
                     }
                 }
             }
+            written_records++;
+            prev_block_id = cur_block_id;
+            cur_vec_id += 2;
             int r_i = 0;
             // string my_str;
 
@@ -1393,25 +1709,24 @@ int Decompressor::decompressSampleSmart(const string &range)
             }
             // }
             variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[c_out_line];
-
             if(params.out_AC_AN){
                 uint32_t AN = no_haplotypes;
 
                 uint32_t AC = std::count_if(gt_variant_data.begin(), gt_variant_data.end(),
                                     [](char c)
                                     { return c == '1' || c == '2' || c == '.'; });
-                bool skip_processing = ((float)AC / AN > params.maxAF || (float)AC / AN < params.minAF || AC > params.maxAC || AC < params.minAC);
+                skip_processing = ((float)AC / AN > maxAF || (float)AC / AN < minAF || AC > maxAC || AC < minAC);
                 if (skip_processing)
                     continue;
 
                 desc.info = "AN=" + std::to_string(AN) + ";AC=" + std::to_string(AC);
             }
-          
-            SetVariant(desc, gt_variant_data, static_cast<size_t> (no_haplotypes));
+            skip_processing = (atoi(desc.qual.c_str()) > max_qual || atoi(desc.qual.c_str()) < min_qual || !(params.out_id == desc.id || params.out_id.empty()));
 
-            written_records++;
-            prev_block_id = cur_block_id;
-            cur_vec_id += 2;
+            if (skip_processing)
+                continue;          
+            SetVariant(desc, gt_variant_data, static_cast<size_t> (no_haplotypes));
+            
         }
         if(cur_chunk_id == end_chunk_id && count)
             appendVCF(temp_desc, genotype, static_cast<size_t> (no_haplotypes));
@@ -1489,7 +1804,8 @@ int Decompressor::decompressSampleSmart(const string &range)
                     }
                 }
             }
-
+            cur_vec_id += 2;
+            prev_block_id = cur_block_id;
             c_out_line = cur_var % standard_block_size;
             int r_i = 0;
             // if (fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size){
@@ -1522,7 +1838,7 @@ int Decompressor::decompressSampleSmart(const string &range)
             // }
 
             variant_desc_t desc = fixed_variants_chunk_io[cur_block_id].data_compress[c_out_line];
- 
+            
             if(params.out_AC_AN){
 
                 uint32_t AN = no_haplotypes;
@@ -1530,16 +1846,18 @@ int Decompressor::decompressSampleSmart(const string &range)
                 uint32_t AC = std::count_if(gt_variant_data.begin(), gt_variant_data.end(),
                                     [](char c)
                                     { return c == '1' || c == '2' || c == '.'; });
-                bool skip_processing = ((float)AC / AN > params.maxAF || (float)AC / AN < params.minAF || AC > params.maxAC || AC < params.minAC);
+                skip_processing = ((float)AC / AN > maxAF || (float)AC / AN < minAF || AC > maxAC || AC < minAC);
                 if (skip_processing)
                     continue;
 
                 desc.info = "AN=" + std::to_string(AN) + ";AC=" + std::to_string(AC);
             }
+            skip_processing = (atoi(desc.qual.c_str()) > max_qual || atoi(desc.qual.c_str()) < min_qual || !(params.out_id == desc.id || params.out_id.empty()));
 
+            if (skip_processing)
+                continue;         
             SetVariant(desc, gt_variant_data, static_cast<size_t> (no_haplotypes));
-            cur_vec_id += 2;
-            prev_block_id = cur_block_id;
+
         }
         if(cur_chunk_id == end_chunk_id && count)
             appendVCF(temp_desc, genotype, static_cast<size_t> (no_haplotypes));
@@ -1931,56 +2249,134 @@ void Decompressor::calculate_end_position(int &_end_block,int &_end_position){
     _end_position = _end_position > 0 ? _end_position : 0;
 
 }
+bool Decompressor::splitFileWriting(int file_num){
 
+    split_files.resize(file_num);
+    for(int i = 0; i < file_num; i++){
+        char write_mode[5] = "wb-";
+        if (out_type == file_type::BCF_File)
+        {
+            write_mode[3] = compression_level;
+            write_mode[4] = '\0';
+        }
+        if (out_file_name != "")
+        {
+            char *gz_fname = (char *)malloc(strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5);
+
+            if (out_type == file_type::VCF_File)
+            {
+                snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.vcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
+                split_files[i] = hts_open(gz_fname, "w");
+            }
+            else
+            {
+
+                snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.bcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
+                split_files[i] = hts_open(gz_fname, write_mode);
+            }
+
+            free(gz_fname);
+            if (!split_files[i]){
+                std::cout << "could not open " << split_files[i] << " file" << std::endl;
+                return false;
+            }
+            else
+            {
+                hts_set_opt(split_files[i], HTS_OPT_CACHE_SIZE, 32000000);
+                rec = bcf_init();
+            }
+        }
+    }
+    return true;
+}
 // *****************************************************************************************************************
 bool Decompressor::OpenForWriting()
 {
     
     char write_mode[5] = "wb-";
-    if (params.out_type == file_type::BCF_File)
+    if (out_type == file_type::BCF_File)
     {
-        write_mode[3] = params.compression_level;
+        write_mode[3] = compression_level;
         write_mode[4] = '\0';
     }
-    if (params.out_file_name != "")
-    {
-        char *gz_fname = (char *)malloc(strlen(params.out_file_name.c_str()) + 5);
 
-        if (params.out_type == file_type::VCF_File)
+
+    if (out_file_name != "")
+    {
+        char *gz_fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
+
+        if (out_type == file_type::VCF_File)
         {
-            snprintf(gz_fname, strlen(params.out_file_name.c_str()) + 5, "%s.vcf", params.out_file_name.c_str());
+            snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.vcf", out_file_name.c_str());
             out_file = hts_open(gz_fname, "w");
         }
-        else
+        else if(out_type == file_type::BCF_File)
         {
 
-            snprintf(gz_fname, strlen(params.out_file_name.c_str()) + 5, "%s.bcf", params.out_file_name.c_str());
+            snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.bcf", out_file_name.c_str());
             out_file = hts_open(gz_fname, write_mode);
         }
-
+        else{
+            
+            if(!out_fam.Open(out_file_name + ".fam" , "w"))
+	        {
+		        cerr << "Cannot open " << out_file_name << ".fam file\n";
+		        return false;
+	        }
+            if(!out_bim.Open(out_file_name + ".bim" , "w"))
+	        {
+		        cerr << "Cannot open " << out_file_name << ".bim file\n";
+		        return false;
+	        }
+            if(!out_bed.Open(out_file_name + ".bed" , "wb"))
+	        {
+		        cerr << "Cannot open " << out_file_name << ".bed file\n";
+		        return false;
+	        }
+        }
         free(gz_fname);
     }
     else
     {
-        if (params.out_type == file_type::VCF_File)
+        if (out_type == file_type::VCF_File)
             out_file = hts_open("-", "w");
 
-        else
+        else if(out_type == file_type::BCF_File)
             out_file = hts_open("-", write_mode);
+        else{
+            if(!out_fam.Open("-" , "w"))
+	        {
+
+		        return false;
+	        }
+            if(!out_bim.Open("-" , "w"))
+	        {
+		        
+		        return false;
+	        }
+            if(!out_bed.Open("-" , "wb"))
+	        {
+		        
+		        return false;
+	        }
+        } 
+
     }
-    if (!out_file){
-        std::cout << "could not open " << out_file << " file" << std::endl;
-        return false;
-    }
-    else
-    {
-        hts_set_opt(out_file, HTS_OPT_CACHE_SIZE, 32000000);
-        rec = bcf_init();
+    if(out_type != file_type::BED_File){
+        if (!out_file){
+            std::cout << "could not open " << out_file << " file" << std::endl;
+            return false;
+        }
+        else
+        {
+            hts_set_opt(out_file, HTS_OPT_CACHE_SIZE, 32000000);
+            rec = bcf_init();
+        }
     }
     return true;
 }
 // *****************************************************************************************************************
-int Decompressor::initSample(vector<string> &v_samples)
+int Decompressor::analyzeInputSamples(vector<string> &v_samples)
 {
     
     if (smpl.loadSamples(v_samples))
@@ -1988,59 +2384,109 @@ int Decompressor::initSample(vector<string> &v_samples)
     
     return 0;
 }
-
-// *****************************************************************************************************************
-int Decompressor::initOut()
-{
+int Decompressor::initOutSplitFile(){
 
     header += "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\t";
     string str = "";
-    if (params.samples == "")
-    {
-        smpl.get_all_samples(str);
-    }
-    else
-    {
-        sampleIDs = smpl.setSamples(params.samples.c_str(), str);
-    }
-      
-    if (!out_file)
-    {
-        return 1;
-    }
+    smpl.get_all_samples(str);
     out_hdr = bcf_hdr_init("r");
-    if (params.out_genotypes)
-        header += "FORMAT";
     bcf_hdr_parse(out_hdr, (char *)header.c_str());
-    if(!params.compress_all){
-        bcf_hdr_remove(out_hdr,BCF_HL_INFO, NULL);
-        bcf_hdr_remove(out_hdr,BCF_HL_FMT, NULL);
-        bcf_hdr_append(out_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
+    bcf_hdr_sync(out_hdr);
+
+    char delim = '\t';
+    std::stringstream ss(str);
+    std::string item;
+    while (getline(ss, item, delim))
+    {
+        bcf_hdr_add_sample(out_hdr, item.c_str());
     }
     bcf_hdr_sync(out_hdr);
-    if(params.out_AC_AN){
-        bcf_hdr_append(out_hdr, "##INFO=<ID=AC,Number=A,Type=String,Description=\"Allele count in genotypes, for each ALT allele, in the same order as listed\">");
-        bcf_hdr_append(out_hdr, "##INFO=<ID=AN,Number=A,Type=String,Description=\"Total number of alleles in called genotypes\">");
-        bcf_hdr_sync(out_hdr);
-    }
     
-    if (params.out_genotypes)
-    {
+    for(size_t i = 0; i < split_files.size(); i++){
+        if (bcf_hdr_write(split_files[i], out_hdr) < 0)
+            return 1;
+    }
+    return 0;
+}
+// *****************************************************************************************************************
+void Decompressor::WriteBEDMagicNumbers() {
+    // 写入前两个固定的魔术数字字节
+    out_bed.PutByte(0x6C);  // 01101100
+    out_bed.PutByte(0x1B);  // 00011011
+    
+    // 写入第三个字节，这里我们假设以样本为主的存储格式
+    out_bed.PutByte(0x01);  // 00000001
+
+    // 如果你需要写入以SNP为主的存储格式，那么你会使用
+    // PutByte(0x00);  // 00000000
+}
+int Decompressor::initOut()
+{
+    if(out_type == file_type::BED_File){
+        string str = "";
+        smpl.get_all_samples(str);
         char delim = '\t';
         std::stringstream ss(str);
         std::string item;
+        string fam_line;
         while (getline(ss, item, delim))
         {
-            if (params.out_genotypes)
-                bcf_hdr_add_sample(out_hdr, item.c_str());
+            fam_line = "0\t"+ item +"\t0\t0\t0\t-9\n";
+            // cout<< fam_line << endl;
+            out_fam.Write(fam_line.c_str(), fam_line.size());
+        }
+        WriteBEDMagicNumbers();
+    }
+    else{
+        header += "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT"; 
+        string str = "";
+        if (params.samples == "")
+        {
+            smpl.get_all_samples(str);
+        }
+        else
+        {
+            
+            sampleIDs = smpl.setSamples(params.samples.c_str(), str);
+        }
+           
+        if (!out_file)
+        {
+            return 1;
+        }
+        out_hdr = bcf_hdr_init("r");
+        if (out_genotypes)
+            header += "FORMAT";
+        bcf_hdr_parse(out_hdr, (char *)header.c_str());
+        if(params.compress_mode == compress_mode_t::lossly_mode){
+            bcf_hdr_remove(out_hdr,BCF_HL_INFO, NULL);
+            bcf_hdr_remove(out_hdr,BCF_HL_FMT, NULL);
+            bcf_hdr_append(out_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
         }
         bcf_hdr_sync(out_hdr);
-    }
+        if(params.out_AC_AN){
+            bcf_hdr_append(out_hdr, "##INFO=<ID=AC,Number=A,Type=String,Description=\"Allele count in genotypes, for each ALT allele, in the same order as listed\">");
+            bcf_hdr_append(out_hdr, "##INFO=<ID=AN,Number=A,Type=String,Description=\"Total number of alleles in called genotypes\">");
+            bcf_hdr_sync(out_hdr);
+        }
 
-    if (bcf_hdr_write(out_file, out_hdr) < 0)
-        return 1;
+        if (out_genotypes)
+        {
+            char delim = '\t';
+            std::stringstream ss(str);
+            std::string item;
+            while (getline(ss, item, delim))
+            {
+                if (out_genotypes)
+                    bcf_hdr_add_sample(out_hdr, item.c_str());
+            }
+            bcf_hdr_sync(out_hdr);
+        }
+
+        if (bcf_hdr_write(out_file, out_hdr) < 0)
+            return 1;
     // }
-
+    }
     return 0;
 }
 // *****************************************************************************************************************
@@ -2165,6 +2611,7 @@ void Decompressor::decoded_vector_row(uint64_t vec_id, uint64_t offset, uint64_t
     }
     delete[] cur_decomp_data;
 }
+//获取原始每行数据的字节
 // *****************************************************************************************************************
 void Decompressor::decode_perm_rev(int vec2_start, const vector<uint32_t> &rev_perm, uint8_t *decomp_data_perm, uint8_t *decomp_data) 
 {
@@ -2212,6 +2659,7 @@ void Decompressor::decode_perm_rev(int vec2_start, const vector<uint32_t> &rev_p
     }
     
 }
+//获取原始的perm顺序
 // *****************************************************************************************************************
 void inline Decompressor::reverse_perm(const vector<uint32_t> &perm, vector<uint32_t> &rev_perm, int no_haplotypes)
 {

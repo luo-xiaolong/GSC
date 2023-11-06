@@ -600,21 +600,23 @@ void DecompressionReader::initDecoderParams(){
 	fixed_field_block_io.Clear();
 	fixed_field_block_io.Initalize();
 }
-//*******************************************************************************************************************************
-bool DecompressionReader::Decoder(vector<block_t> &v_blocks,vector<vector<uint32_t>> &s_perm,vector<uint8_t> &gt_index,uint32_t cur_chunk_id){
-	
-	
-	initDecoderParams();
-	no_variants =  fixed_field_block_compress.no_variants;
+bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<std::vector<uint32_t>> &s_perm, std::vector<uint8_t> &gt_index, uint32_t cur_chunk_id) {
+    // Initialize decoder parameters
+    initDecoderParams();
+    no_variants = fixed_field_block_compress.no_variants;
 
-	// cout<<"no_variants: "<<no_variants<<endl;
-	vector<variant_desc_t> v_vcf_fixed_data_io;
-	vector<variant_desc_t> v_vcf_sort_data_io;
-	uint32_t block_size = n_samples * uint32_t(ploidy);
-	v_vcf_fixed_data_io.reserve(no_variants_in_buf);
-	v_vcf_sort_data_io.reserve(no_variants_in_buf);
-	vector<uint32_t> perm(block_size,0);
-	unique_ptr<thread> decomp_fixed_field_thread(new thread([&]{
+    // Other initializations here...
+    std::vector<variant_desc_t> v_vcf_fixed_data_io;
+    std::vector<variant_desc_t> v_vcf_sort_data_io;
+    uint32_t block_size = n_samples * static_cast<uint32_t>(ploidy);
+    v_vcf_fixed_data_io.reserve(no_variants_in_buf);
+    v_vcf_sort_data_io.reserve(no_variants_in_buf);
+    std::vector<uint32_t> perm(block_size, 0);
+
+    // Start threads using std::async for better exception handling and cleaner code
+    auto fixedFieldHandle = std::async(std::launch::async, [&]() {
+        // Code from the original fixed field thread
+        // Decompression and processing...
 		for (auto data : {
         	make_tuple(ref(fixed_field_block_io.chrom), ref(fixed_field_block_compress.chrom), p_chrom, "chrom"),
         	make_tuple(ref(fixed_field_block_io.id), ref(fixed_field_block_compress.id), p_id, "id"),
@@ -641,10 +643,11 @@ bool DecompressionReader::Decoder(vector<block_t> &v_blocks,vector<vector<uint32
 			read_str(fixed_field_block_io.qual, p_qual, desc.qual);
 			v_vcf_fixed_data_io.emplace_back(desc);
 		}
-	
-	}));
-	unique_ptr<thread> decomp_sort_field__thread(new thread([&]{
+    });
 
+    auto sortFieldHandle = std::async(std::launch::async, [&]() {
+        // Code from the original sorted field thread
+        // Decompression and processing...
 		for (auto data : {
 			
         	make_tuple(ref(fixed_field_block_io.pos), ref(fixed_field_block_compress.pos), p_pos, "pos"),
@@ -721,10 +724,14 @@ bool DecompressionReader::Decoder(vector<block_t> &v_blocks,vector<vector<uint32
 			v_blocks.emplace_back(v_vcf_sort_data_io);
 			v_vcf_sort_data_io.clear();
 		}
-	}));
-	decomp_fixed_field_thread->join();
-	decomp_sort_field__thread->join();
-	uint32_t i_variant = 0;
+    });
+
+    // Wait for both tasks to complete
+    fixedFieldHandle.wait();
+    sortFieldHandle.wait();
+
+    // Merge results
+ 	uint32_t i_variant = 0;
 
 	for(size_t i = 0; i < v_blocks.size(); i++) 	
 	{
@@ -741,8 +748,153 @@ bool DecompressionReader::Decoder(vector<block_t> &v_blocks,vector<vector<uint32
 	}
 	// v_vcf_fixed_data_io.clear();
 	gt_index = move(fixed_field_block_io.gt_block);
-	return true;
+
+    // Return true or appropriate status
+    return true;
 }
+//*******************************************************************************************************************************
+// bool DecompressionReader::Decoder(vector<block_t> &v_blocks,vector<vector<uint32_t>> &s_perm,vector<uint8_t> &gt_index,uint32_t cur_chunk_id){
+	
+	
+// 	initDecoderParams();
+// 	no_variants =  fixed_field_block_compress.no_variants;
+
+// 	// cout<<"no_variants: "<<no_variants<<endl;
+// 	vector<variant_desc_t> v_vcf_fixed_data_io;
+// 	vector<variant_desc_t> v_vcf_sort_data_io;
+// 	uint32_t block_size = n_samples * uint32_t(ploidy);
+// 	v_vcf_fixed_data_io.reserve(no_variants_in_buf);
+// 	v_vcf_sort_data_io.reserve(no_variants_in_buf);
+// 	vector<uint32_t> perm(block_size,0);
+// 	unique_ptr<thread> decomp_fixed_field_thread(new thread([&]{
+// 		for (auto data : {
+//         	make_tuple(ref(fixed_field_block_io.chrom), ref(fixed_field_block_compress.chrom), p_chrom, "chrom"),
+//         	make_tuple(ref(fixed_field_block_io.id), ref(fixed_field_block_compress.id), p_id, "id"),
+//         	make_tuple(ref(fixed_field_block_io.alt), ref(fixed_field_block_compress.alt), p_alt, "alt"),
+//     		make_tuple(ref(fixed_field_block_io.qual), ref(fixed_field_block_compress.qual), p_qual, "qual"),
+
+
+//     	})
+// 		{
+// 			CBSCWrapper bsc;
+// 			bsc.InitDecompress();
+// 			bsc.Decompress(get<1>(data), get<0>(data));
+// 			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+
+// 		}
+// 		uint32_t i_variant;
+// 		variant_desc_t desc;
+// 		for(i_variant = 0; i_variant < no_variants; i_variant++) 	
+// 		{
+// 			// Load variant description
+// 			read_str(fixed_field_block_io.chrom, p_chrom, desc.chrom);
+// 			read_str(fixed_field_block_io.id, p_id, desc.id);
+// 			read_str(fixed_field_block_io.alt, p_alt, desc.alt);
+// 			read_str(fixed_field_block_io.qual, p_qual, desc.qual);
+// 			v_vcf_fixed_data_io.emplace_back(desc);
+// 		}
+	
+// 	}));
+// 	unique_ptr<thread> decomp_sort_field__thread(new thread([&]{
+
+// 		for (auto data : {
+			
+//         	make_tuple(ref(fixed_field_block_io.pos), ref(fixed_field_block_compress.pos), p_pos, "pos"),
+//         	make_tuple(ref(fixed_field_block_io.ref), ref(fixed_field_block_compress.ref), p_ref, "ref"),
+//         	// make_tuple(ref(fixed_field_block_io.gt_block), ref(fixed_field_block_compress.gt_block), p_gt, "GT")
+
+//     	})
+// 		{
+// 			CBSCWrapper bsc;
+// 			bsc.InitDecompress();
+// 			bsc.Decompress(get<1>(data), get<0>(data));
+// 			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+
+// 		}
+// 		if(fixed_field_block_compress.gt_block.back() == 0)
+// 		{
+// 			fixed_field_block_compress.gt_block.pop_back();
+// 			CBSCWrapper bsc;
+// 			bsc.InitDecompress();
+// 			bsc.Decompress(fixed_field_block_compress.gt_block, fixed_field_block_io.gt_block);			
+			
+// 		}else{
+// 			fixed_field_block_compress.gt_block.pop_back();	
+// 			zstd::zstd_decompress(fixed_field_block_compress.gt_block, fixed_field_block_io.gt_block);
+// 			// cout<<"fixed_field_block_io:"<<fixed_field_block_io.gt_block.size()<<endl;		
+// 		}
+// 		uint32_t i_variant;
+// 		variant_desc_t desc;
+// 		for(i_variant = 0; i_variant < no_variants; i_variant++) 	
+// 		{
+// 			int64_t pos = 0;
+// 			// Load variant description
+			
+// 			read(fixed_field_block_io.pos, p_pos, pos);
+			
+// 			pos += prev_pos;
+// 			prev_pos = pos;
+// 			desc.pos = pos;
+// 			read_str(fixed_field_block_io.ref, p_ref, desc.ref);
+// 			desc.filter = ".";
+// 			desc.info = ".";
+// 			v_vcf_sort_data_io.emplace_back(desc);
+// 			if ((i_variant+1) % block_size == 0)
+// 			{
+// 				out_perm(perm, v_vcf_sort_data_io);
+// 				s_perm.emplace_back(perm);
+// 				v_blocks.emplace_back(v_vcf_sort_data_io);
+// 				v_vcf_sort_data_io.clear();
+// 			}
+// 		}
+// 		if (i_variant % block_size)
+// 		{
+// 			auto it = vint_last_perm.find(cur_chunk_id);
+// 			// cout<<cur_chunk_id<<endl;
+// 			// cout<<vint_last_perm.size()<<":"<<it->first<<endl;
+// 			// if(it == vint_last_perm.end())
+// 			// 	return false;
+// 			// for (size_t i_p = 0; i_p < perm.size(); i_p++)
+// 			// {
+// 			// 	perm[i_p] = i_p;
+// 			// }
+
+// 			perm = vint_code::DecodeArray(it->second);
+// 			s_perm.emplace_back(perm);
+
+// 			for (size_t i_p = 0; i_p < i_variant % block_size; i_p++)
+// 			{
+// 				if (atoi(v_vcf_sort_data_io[i_p].ref.c_str()))
+// 				{
+// 					v_vcf_sort_data_io[i_p].ref = v_vcf_sort_data_io[i_p].ref.substr(to_string(atoi(v_vcf_sort_data_io[i_p].ref.c_str())).length());
+// 				}
+// 			}
+
+// 			v_blocks.emplace_back(v_vcf_sort_data_io);
+// 			v_vcf_sort_data_io.clear();
+// 		}
+// 	}));
+// 	decomp_fixed_field_thread->join();
+// 	decomp_sort_field__thread->join();
+// 	uint32_t i_variant = 0;
+
+// 	for(size_t i = 0; i < v_blocks.size(); i++) 	
+// 	{
+// 		for (size_t j = 0; j < v_blocks[i].data_compress.size(); j++)
+// 		{
+// 			v_blocks[i].data_compress[j].chrom = std::move(v_vcf_fixed_data_io[i_variant].chrom);
+// 			v_blocks[i].data_compress[j].id = std::move(v_vcf_fixed_data_io[i_variant].id);
+// 			v_blocks[i].data_compress[j].alt = std::move(v_vcf_fixed_data_io[i_variant].alt);
+// 			v_blocks[i].data_compress[j].qual = std::move(v_vcf_fixed_data_io[i_variant].qual);
+
+// 			i_variant++;
+// 		}
+
+// 	}
+// 	// v_vcf_fixed_data_io.clear();
+// 	gt_index = move(fixed_field_block_io.gt_block);
+// 	return true;
+// }
 
 // // *******************************************************************************************************************************
 // void DecompressionReader::SetNoSamples(uint32_t _no_samples)

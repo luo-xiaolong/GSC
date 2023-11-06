@@ -53,6 +53,8 @@
 
 #include <math.h>
 
+#include <limits>
+
 #include <string>
 
 #include <cstddef>
@@ -76,6 +78,9 @@ const uint32_t p_bsc_features = 1u;
 
 const uint32_t max_buffer_size = 8 << 20;
 
+const float min_float = std::numeric_limits<float>::lowest();
+
+const float max_float = std::numeric_limits<float>::max();
 // variable "where" and "whichByte_whereInRes" changed to uint32_t from uchar
 
 // const uint32_t MATCH_BITS_HUF = 8;

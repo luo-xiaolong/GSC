@@ -21,6 +21,84 @@ using namespace std;
 #include <vector>
 
 
+// class GtBlockQueue
+// {  
+// public:
+//     GtBlockQueue() : flag(false), capacity(0)
+//     {}
+    
+//     GtBlockQueue(size_t _capacity) : flag(false), capacity(_capacity)
+//     {}
+    
+//     ~GtBlockQueue()
+//     {
+//         for(auto &block : g_blocks) {
+//             delete[] block.data;
+//         }
+//     }
+
+//     void Push(int id_block, unsigned char *data, size_t num_rows, vector<variant_desc_t> &v_vcf_data_compress)
+//     {
+//         {
+//             unique_lock<std::mutex> lck(m_mutex);
+//             cv_push.wait(lck, [this] { return g_blocks.size() < capacity; });
+
+//             g_blocks.emplace_back(id_block, data, num_rows, std::move(v_vcf_data_compress));
+//         }
+//         cv_pop.notify_one();
+//     }
+    
+//     bool Pop(int &id_block, unsigned char *&data, size_t &num_rows, vector<variant_desc_t> &v_vcf_data_compress)
+//     {
+//         {
+//             unique_lock<std::mutex> lck(m_mutex);
+//             cv_pop.wait(lck, [this] { return !g_blocks.empty() || flag; });
+
+//             if (flag && g_blocks.empty())
+//                 return false;
+
+//             auto block = move(g_blocks.front());
+//             g_blocks.pop_front();
+//             id_block = block.block_id;
+//             data = block.data;
+//             num_rows = block.num_rows;
+//             v_vcf_data_compress = std::move(block.v_vcf_data_compress);
+//         }
+//         cv_push.notify_one();
+
+//         return true;
+//     }
+    
+//     void Complete()
+//     {
+//         {
+//             unique_lock<std::mutex> lck(m_mutex);
+//             flag = true;
+//         }
+//         cv_pop.notify_all();
+//     }
+
+// private:
+//     struct genotype_block
+//     {
+//         int block_id;
+//         unsigned char *data;
+//         size_t num_rows;
+//         vector<variant_desc_t> v_vcf_data_compress;
+
+//         genotype_block(int _block_id, unsigned char* _data, size_t _num_rows, vector<variant_desc_t> &&_v_vcf_data_compress)
+//             : block_id(_block_id), data(_data), num_rows(_num_rows), v_vcf_data_compress(move(_v_vcf_data_compress))
+//         {}
+//     };
+
+//     deque<genotype_block> g_blocks; // changed to deque
+    
+//     bool flag;
+//     size_t capacity;
+    
+//     mutex m_mutex;
+//     condition_variable cv_pop, cv_push;
+// };
 
 class GtBlockQueue
 {  
@@ -37,7 +115,7 @@ public:
     void Push(int id_block, unsigned char *data, size_t num_rows,vector<variant_desc_t> &v_vcf_data_compress)
     {
         unique_lock<std::mutex> lck(m_mutex);
-        // cout<<"PUSH"<<endl;
+        
         cv_push.wait(lck, [this] {return g_blocks.size() < capacity;});
 
         g_blocks.push_back(genotype_block_t(id_block, data, num_rows,std::move(v_vcf_data_compress)));

@@ -27,8 +27,10 @@ class Compressor
     vector<thread> block_process_thread;
 
     FILE *comp = nullptr;
+    FILE *temp_file = nullptr;
     uint64_t sdsl_offset;
     char *fname = nullptr;
+    char *fname1 = nullptr;
     File_Handle_2 * file_handle2 = nullptr;
 
 
@@ -123,7 +125,8 @@ class Compressor
     bool compress_meta(vector<string> v_samples,const string& v_header);
     void InitCompressParams();
     bool compressFixedFields(fixed_field_block &field_block_io);
-    
+    bool OpenTempFile(const string &out_file_name);
+    bool writeTempFlie(fixed_field_block &fixed_field_block_io);
 public:
     ~Compressor()
     {
@@ -139,6 +142,8 @@ public:
 		    delete file_handle2;
         if(fname)
             free(fname);
+        if(fname1)
+            free(fname1);
         // if(comp)
         //     fclose(comp);
            

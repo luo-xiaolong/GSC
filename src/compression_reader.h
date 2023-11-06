@@ -20,13 +20,17 @@ class CompressionReader {
 
     
 	htsFile* in_file = nullptr;
+    vector<htsFile*> merge_files;
     bcf_hdr_t * vcf_hdr= nullptr;
+    // vector<bcf_hdr_t*> vcf_hdrs;
 	bcf1_t * vcf_record;
     file_type in_type;
     std::string in_file_name;
     bool in_open;
     bool vcf_hdr_read;
-    bool compress_all;
+    compress_mode_t compress_mode;
+    bool merge_flag;
+    bool merge_failure_flag;
 
     uint32_t no_samples;
     uint32_t ploidy;
@@ -126,7 +130,9 @@ public:
         no_chrom_num = 0;
         in_file_name = params.in_file_name;
         in_type = params.in_type;
-        compress_all = params.compress_all;
+        compress_mode = params.compress_mode;
+        merge_flag = params.merge_file_flag;
+        merge_failure_flag = false;
         v_vcf_data_compress.reserve(no_variants_in_buf);
         actual_variants.reserve(no_variants_in_buf);
         no_vec = 0;

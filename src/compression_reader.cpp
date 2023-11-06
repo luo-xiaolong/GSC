@@ -1,31 +1,92 @@
 #include "compression_reader.h"
-
+#include <iostream>
+#include <fstream>
+#include <sstream>
 // ***************************************************************************************************************************************
 // ***************************************************************************************************************************************
 bool CompressionReader::OpenForReading(string & file_name)
 {
+    if(merge_flag){
+        bcf_hdr_t * temp_vcf_hdr = nullptr;
+        vector<string> merge_file_names;
+        long size = 0;
+        if(file_name[0] == '@')
+        {
+            
+            std::ifstream directory_file_name(file_name.substr(1));
+            if(!directory_file_name.is_open())
+            {
+                std::cout << "Error. Cannot open " << file_name.substr(1)<< " file with samples.\n";
+                exit(1);
+            }
+            std::string item;
+            
+            while (directory_file_name >> item) {
+                merge_file_names.emplace_back(item);
+                size++;        
+            }
+            cout<<"size:"<<size<<endl;
+            directory_file_name.clear();
+        }else{   
+            char delim = ',';
+            std::stringstream ss(file_name);
+            std::string item;
+            while (getline(ss, item, delim)) {
+                merge_file_names.emplace_back(item);
+                size++;
+            }
+        }
+        merge_files.resize(size);
+        for(long i = 0;i < size;i++){
+            
+            if (merge_files[i])
+                hts_close(merge_files[i]);
+            if (in_type == file_type::VCF_File)
+            {
+                merge_files[i] = hts_open(merge_file_names[i].c_str(), "r");
+            }
+            else
+            {
+                merge_files[i] = hts_open(merge_file_names[i].c_str(), "rb");
+            }
+            if(!merge_files[i]){
+                std::cout << "could not open " << merge_file_names[i] << " file" << std::endl;
+                merge_failure_flag = true;
+                return false;
+            }
+            hts_set_opt(merge_files[i], HTS_OPT_CACHE_SIZE, 32 << 20);
+            hts_set_opt(merge_files[i], HTS_OPT_BLOCK_SIZE, 32 << 20);
+            
+            temp_vcf_hdr = bcf_hdr_read(merge_files[i]);
+            vcf_hdr = bcf_hdr_merge(vcf_hdr, temp_vcf_hdr);
 
-    if(in_file)
-        hts_close(in_file);
-    
-    if (in_type == file_type::VCF_File)
-    {
-        in_file = hts_open(file_name.c_str(), "r");
+        }
+        vcf_record = bcf_init();
+        
+        
+    }else{
+        if(in_file)
+            hts_close(in_file);
+        
+        if (in_type == file_type::VCF_File)
+        {
+            in_file = hts_open(file_name.c_str(), "r");
+        }
+        else
+        {
+            in_file = hts_open(file_name.c_str(), "rb");
+        }
+        if(!in_file){
+            std::cout << "could not open " << in_file_name << " file" << std::endl;
+            return false;
+        }
+        hts_set_opt(in_file, HTS_OPT_CACHE_SIZE, 32 << 20);
+        hts_set_opt(in_file, HTS_OPT_BLOCK_SIZE, 32 << 20);
+        if(vcf_hdr)
+            bcf_hdr_destroy(vcf_hdr);
+        vcf_hdr = bcf_hdr_read(in_file);
+        vcf_record = bcf_init();
     }
-    else
-    {
-        in_file = hts_open(file_name.c_str(), "rb");
-    }
-    if(!in_file){
-        std::cout << "could not open " << in_file_name << " file" << std::endl;
-        return false;
-    }
-    hts_set_opt(in_file, HTS_OPT_CACHE_SIZE, 32 << 20);
-    hts_set_opt(in_file, HTS_OPT_BLOCK_SIZE, 32 << 20);
-    if(vcf_hdr)
-        bcf_hdr_destroy(vcf_hdr);
-    vcf_hdr = bcf_hdr_read(in_file);
-    vcf_record = bcf_init();
     return true;
 }
 
@@ -33,11 +94,11 @@ bool CompressionReader::OpenForReading(string & file_name)
 // Get number of samples in VCF
 bool CompressionReader::ReadFile()
 {
-    if(!in_file || !vcf_hdr)
+    
+    if(!(in_file || !merge_failure_flag) || !vcf_hdr)
         return -1;
         
     no_samples = bcf_hdr_nsamples(vcf_hdr);
-    
     if (!vcf_hdr_read)
     {
         
@@ -53,9 +114,10 @@ bool CompressionReader::ReadFile()
 // ***************************************************************************************************************************************
 uint32_t CompressionReader::GetSamples(vector<string> &s_list)
 {
-
+    
     if (!vcf_hdr_read)
     {
+        
         ReadFile();
     }
     s_list = samples_list;
@@ -556,53 +618,64 @@ bool CompressionReader::ProcessInVCF()
     cur_pos = 0;
     gt_data = new int[no_samples*ploidy];
     no_actual_variants = 0;
-    while (bcf_read1(in_file, vcf_hdr, vcf_record) >= 0)
-    {
-        variant_desc_t desc;
-        if (vcf_record->errcode)
+    int file_nums = 1;
+    if(merge_flag){
+        file_nums = merge_files.size();
+    }
+    
+    for(int i = 0;i < file_nums;i++){
+        if(merge_flag)
+            in_file = merge_files[i];
+ 
+        while (bcf_read1(in_file, vcf_hdr, vcf_record) >= 0)
         {
-            std::cout << "Repair VCF file\n";
-            exit(9);
-        }
-        bcf_unpack(vcf_record, BCF_UN_ALL);
-        if (vcf_record->d.fmt->n != (int)ploidy)
-        {
-            std::cout << "Wrong ploidy (not equal to " << ploidy << ") for record at position " << vcf_record->pos << ".\n";
-            std::cout << "Repair VCF file OR set correct ploidy using -p option\n";
-            exit(9);
-        }
-        if (tmpi % 100000 == 0){
-            cout << tmpi << "\r";
-            fflush(stdout);
-        }
-        if(compress_all){
-
-            std::vector<field_desc> curr_field(keys.size());
-
-            GetVariantFromRec(vcf_record, curr_field);
-
-            SetVariantOtherFields(curr_field);
-        
-
-            for(size_t j = 0; j < keys.size(); ++j)
+            // cout<<"no_samples:"<<no_samples<<endl;
+            variant_desc_t desc;
+            if (vcf_record->errcode)
             {
-                if(curr_field[j].data_size > 0)
+                std::cout << "Repair VCF file\n";
+                exit(9);
+            }
+            bcf_unpack(vcf_record, BCF_UN_ALL);
+            if (vcf_record->d.fmt->n != (int)ploidy)
+            {
+                std::cout << "Wrong ploidy (not equal to " << ploidy << ") for record at position " << vcf_record->pos << ".\n";
+                std::cout << "Repair VCF file OR set correct ploidy using -p option\n";
+                exit(9);
+            }
+            if (tmpi % 100000 == 0){
+                cout << tmpi << "\r";
+                fflush(stdout);
+            }
+            if(compress_mode == compress_mode_t::lossless_mode){
+
+                std::vector<field_desc> curr_field(keys.size());
+
+                GetVariantFromRec(vcf_record, curr_field);
+
+                SetVariantOtherFields(curr_field);
+            
+
+                for(size_t j = 0; j < keys.size(); ++j)
                 {
-				    if(curr_field[j].data)
-					    delete[] curr_field[j].data;
+                    if(curr_field[j].data_size > 0)
+                    {
+                        if(curr_field[j].data)
+                            delete[] curr_field[j].data;
                         curr_field[j].data = nullptr;
                         curr_field[j].data_size = 0;
-                }
-            } 
-            curr_field.clear();
-        }
-            
-        ++no_actual_variants;
-        ProcessFixedVariants(vcf_record, desc);
+                    }
+                } 
+                curr_field.clear();
+            }
+                
+            ++no_actual_variants;
+            ProcessFixedVariants(vcf_record, desc);
 
-        tmpi++;
+            tmpi++;
+        }
     }
-    if(compress_all)
+    if(compress_mode == compress_mode_t::lossless_mode)
         order = topo_sort(field_order_graph,inDegree);
     if (cur_g_data)
     {
@@ -950,9 +1023,21 @@ uint32_t CompressionReader::setNoVecBlock(GSC_Params &params)
 {
     params.var_in_block = no_samples * params.ploidy;
 
+    int numThreads = std::thread::hardware_concurrency()/2;
+
+    int numChunks = 1 + (params.var_in_block / 1024);
+    
+    if (numChunks < numThreads) {
+        
+        numThreads = numChunks;
+    }
+
+    params.no_gt_threads = numThreads;
+
     if(params.var_in_block < 1024)
     {
         chunk_size = CHUNK_SIZE1;
+        
     }
     else if(params.var_in_block < 4096 )
     {
@@ -1009,7 +1094,7 @@ void CompressionReader::CloseFiles(){
     where_chrom.emplace_back(make_pair(no_chrom, no_chrom_num));
 
     no_chrom_num = 0;
-    if(compress_all){
+    if(compress_mode == compress_mode_t::lossless_mode){
 	    for (uint32_t i = 0; i < no_keys; ++i)
 	    {
         

@@ -66,62 +66,86 @@ bool Compressor::writeCompressFlie()
     comp_size = static_cast<uint32_t>(comp_v_samples.size());
     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
     fwrite(comp_v_samples.data(), 1, comp_v_samples.size(), comp);
-
-    while (comp_sort_block_queue.Pop(fixed_field_block_id,fixed_field_block_io))
-    {
-        // cout<<"fixed_fixed_field_block_id: "<<fixed_fixed_field_block_id<<":"<<sort_fixed_field_block_id<<endl;
-        assert(fixed_field_block_id == curr_no_blocks);
+    
+    uint64_t size;
+    uint8_t *temp_buffer = NULL;
+    while (fread(&size, sizeof(size), 1, temp_file) == 1) { // 读取块的大小
         chunks_streams[curr_no_blocks+1].offset = ftell(comp);
+        
+        temp_buffer = (uint8_t*)realloc(temp_buffer, size); // 根据需要分配或重新分配缓冲区
+        if (!temp_buffer) {
+            perror("Memory allocation failed");
+            fclose(temp_file);
+            return 1;
+        }
+
+        if (fread(temp_buffer, 1, size, temp_file) != size) { // 读取数据块
+            perror("Error reading data block");
+            free(temp_buffer);
+            fclose(temp_file);
+            return 1;
+        }
+        fwrite(temp_buffer, 1, size, comp);
         curr_no_blocks++;
-        
-        fwrite(&fixed_field_block_io.no_variants, sizeof(uint32_t), 1, comp);
-        CHORM_comp_size += fixed_field_block_io.chrom.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.chrom.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.chrom.data(), 1, fixed_field_block_io.chrom.size(), comp);
-        
-        POS_comp_size += fixed_field_block_io.pos.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.pos.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.pos.data(), 1, fixed_field_block_io.pos.size(), comp);
-
-        ID_comp_size += fixed_field_block_io.id.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.id.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.id.data(), 1, fixed_field_block_io.id.size(), comp);
-
-
-        REF_comp_size += fixed_field_block_io.ref.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.ref.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.ref.data(), 1, fixed_field_block_io.ref.size(), comp);
-
-        
-        ALT_comp_size += fixed_field_block_io.alt.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.alt.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.alt.data(), 1, fixed_field_block_io.alt.size(), comp);
-
-        
-        QUAL_comp_size += fixed_field_block_io.qual.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.qual.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.qual.data(), 1, fixed_field_block_io.qual.size(), comp);
-
-        GT_comp_size += fixed_field_block_io.gt_block.size();
-        comp_size = static_cast<uint32_t>(fixed_field_block_io.gt_block.size());
-        fwrite(&comp_size, sizeof(uint32_t), 1, comp);
-        fwrite(fixed_field_block_io.gt_block.data(), 1, fixed_field_block_io.gt_block.size(), comp);
     }
-    cout << "Meta_comp_size:    " << Meta_comp_size <<"\tByte"<<endl;
-    cout << "CHORM_comp_size:   " << CHORM_comp_size <<"\tByte"<< endl;
-    cout << "POS_comp_size:     " << POS_comp_size <<"\tByte"<< endl;
-    cout << "ID_comp_size:      " << ID_comp_size <<"\tByte"<< endl;
-    cout << "REF_comp_size:     " << REF_comp_size <<"\tByte"<< endl;
-    cout << "ALT_comp_size:     " << ALT_comp_size <<"\tByte"<< endl;
-    cout << "QUAL_comp_size:    " << QUAL_comp_size <<"\tByte"<< endl;
-    cout << "GT_index_comp_size:      " << GT_comp_size <<"\tByte"<< endl;
 
+    // while (comp_sort_block_queue.Pop(fixed_field_block_id,fixed_field_block_io))
+    // {
+    //     // cout<<"fixed_fixed_field_block_id: "<<fixed_fixed_field_block_id<<":"<<sort_fixed_field_block_id<<endl;
+    //     assert(fixed_field_block_id == curr_no_blocks);
+    //     chunks_streams[curr_no_blocks+1].offset = ftell(comp);
+    //     curr_no_blocks++;
+        
+    //     fwrite(&fixed_field_block_io.no_variants, sizeof(uint32_t), 1, comp);
+    //     CHORM_comp_size += fixed_field_block_io.chrom.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.chrom.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.chrom.data(), 1, fixed_field_block_io.chrom.size(), comp);
+        
+    //     POS_comp_size += fixed_field_block_io.pos.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.pos.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.pos.data(), 1, fixed_field_block_io.pos.size(), comp);
+
+    //     ID_comp_size += fixed_field_block_io.id.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.id.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.id.data(), 1, fixed_field_block_io.id.size(), comp);
+
+
+    //     REF_comp_size += fixed_field_block_io.ref.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.ref.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.ref.data(), 1, fixed_field_block_io.ref.size(), comp);
+
+        
+    //     ALT_comp_size += fixed_field_block_io.alt.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.alt.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.alt.data(), 1, fixed_field_block_io.alt.size(), comp);
+
+        
+    //     QUAL_comp_size += fixed_field_block_io.qual.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.qual.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.qual.data(), 1, fixed_field_block_io.qual.size(), comp);
+
+    //     GT_comp_size += fixed_field_block_io.gt_block.size();
+    //     comp_size = static_cast<uint32_t>(fixed_field_block_io.gt_block.size());
+    //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
+    //     fwrite(fixed_field_block_io.gt_block.data(), 1, fixed_field_block_io.gt_block.size(), comp);
+    // }
+    // cout << "Meta_comp_size:    " << Meta_comp_size <<"\tByte"<<endl;
+    // cout << "CHORM_comp_size:   " << CHORM_comp_size <<"\tByte"<< endl;
+    // cout << "POS_comp_size:     " << POS_comp_size <<"\tByte"<< endl;
+    // cout << "ID_comp_size:      " << ID_comp_size <<"\tByte"<< endl;
+    // cout << "REF_comp_size:     " << REF_comp_size <<"\tByte"<< endl;
+    // cout << "ALT_comp_size:     " << ALT_comp_size <<"\tByte"<< endl;
+    // cout << "QUAL_comp_size:    " << QUAL_comp_size <<"\tByte"<< endl;
+    // cout << "GT_index_comp_size:      " << GT_comp_size <<"\tByte"<< endl;
+    free(temp_buffer);
+    fclose(temp_file);
+    remove(fname1);
     uint64_t end_offset = ftell(comp);
     sdsl_offset = end_offset;
     fseek(comp, 0, SEEK_SET);
@@ -191,6 +215,7 @@ bool Compressor::OpenForWriting(const string &out_file_name)
         std::cerr << "ERROR: storing archive not successful for: `" << fname << "`" << std::endl;
         exit(1);
     }
+    
     setvbuf(comp, nullptr, _IOFBF, 64 << 20);
     sdsl_offset = ftell(comp) + sizeof(uint64_t);
     
@@ -202,7 +227,7 @@ bool Compressor::OpenForWriting(const string &out_file_name)
 
     if (file_handle2)
 		delete file_handle2;
-    if(params.compress_all){
+    if(params.compress_mode == compress_mode_t::lossless_mode){
         
 	    file_handle2 = new File_Handle_2(false);
         if (!file_handle2->Open(out_file_name))
@@ -211,6 +236,25 @@ bool Compressor::OpenForWriting(const string &out_file_name)
 		    return false;
 	    }
     }
+    return true;
+}
+//*******************************************************************************************************************
+bool Compressor::OpenTempFile(const string &out_file_name)
+{
+    fname1 = (char *)malloc(strlen(out_file_name.c_str()) + 5);
+
+    snprintf(fname1, strlen(out_file_name.c_str()) + 5, "%s.temp", out_file_name.c_str());
+
+    temp_file = fopen(fname1, "wb");
+    if (!temp_file)
+    {
+
+        std::cerr << "ERROR: storing archive not successful for: `" << fname1 << "`" << std::endl;
+        exit(1);
+    }
+    
+    setvbuf(temp_file, nullptr, _IOFBF, 64 << 20);
+
     return true;
 }
 // *******************************************************************************************************************
@@ -231,13 +275,16 @@ bool Compressor::CompressProcess()
 	}
     if (!OpenForWriting(params.out_file_name))
 		return false;
-
+    
+    if (!OpenTempFile(params.out_file_name))
+		return false;
+        
     string header;
     
     vector<string> v_samples;
 
     compression_reader->GetHeader(header);
-
+    
     uint32_t no_samples = compression_reader->GetSamples(v_samples);
     // for(int i =0;i<v_samples.size();i++)
     //     cout<<v_samples[i]<<endl;
@@ -255,7 +302,7 @@ bool Compressor::CompressProcess()
 
     compression_reader->setNoVecBlock(params);
 
-
+    cout<<"no_gt_threads:"<<params.no_gt_threads<<endl;
     GtBlockQueue inGtBlockQueue(max((int)(params.no_blocks*params.no_gt_threads),8));
 
     // VarBlockQueue<fixed_fixed_field_block> inVarBlockQueue(max((int)params.no_threads * 2, 8));
@@ -264,7 +311,7 @@ bool Compressor::CompressProcess()
 
     PartQueue<SPackage> part_queue(max((int)params.no_threads * 2, 8)); 
 
-    if(params.compress_all){
+    if(params.compress_mode == compress_mode_t::lossless_mode){
 
         compression_reader->setPartQueue(&part_queue); 
 
@@ -429,7 +476,8 @@ bool Compressor::CompressProcess()
                 
             }                            
                                     
-        }));           
+        })); 
+
     
     if (!compression_reader->ProcessInVCF())
         return false;
@@ -440,7 +488,7 @@ bool Compressor::CompressProcess()
 
     compression_reader->GetWhereChrom(where_chrom,chunks_min_pos);
     
-    if(params.compress_all){
+    if(params.compress_mode == compress_mode_t::lossless_mode){
         
         for (uint32_t i = 0; i < params.no_threads; ++i)
 		    part_compress_thread[i].join();
@@ -478,7 +526,9 @@ bool Compressor::CompressProcess()
         block_process_thread[i].join();
     compress_thread->join();
 
-    
+    if(temp_file)
+        fclose(temp_file);
+    temp_file = fopen(fname1, "rb");
     std::cout << "Complete and process the chunking." << std::endl;
 
 
@@ -572,16 +622,6 @@ void Compressor::compressReplicatedRow()
     }
     bm_comp_copy_orgl_id.FlushPartialWordBuffer();
 
-    // if (comp_pos_copy)
-    //     delete[] comp_pos_copy;
-
-    // for (int i = 0; i < (int)zeros_only_bit_vector[0].size(); i++)
-    //     zeros_only_bit_vector[0][i] = !zeros_only_bit_vector[0][i];
-
-    // sdsl::util::clear(rank_zeros_only_vector[0]);
-    // sdsl::util::clear(rank_zeros_only_vector[1]);
-    // sdsl::util::clear(rank_copy_bit_vector[0]);
-    // sdsl::util::clear(rank_copy_bit_vector[1]);
     sdsl::util::clear(rank_unique);
 }
 
@@ -654,6 +694,7 @@ void Compressor::compress_other_fileds(SPackage& pck, vector<uint8_t>& v_compres
 	else
 	{
 		v_compressed.clear();
+
 		file_handle2->AddPartComplete(pck.stream_id_data, pck.part_id, v_compressed);
         
 	}
@@ -662,6 +703,7 @@ void Compressor::compress_other_fileds(SPackage& pck, vector<uint8_t>& v_compres
     
     // lzma2::lzma2_compress(pck.v_size, v_compressed, 10, 1);
     v_tmp.resize(pck.v_size.size() * 4);
+
 	copy_n((uint8_t*)pck.v_size.data(), v_tmp.size(), v_tmp.data());
     
     cbsc_size->Compress(v_tmp, v_compressed);
@@ -895,11 +937,59 @@ bool Compressor::compressFixedFields(fixed_field_block &fixed_field_block_io){
     }else{
                     // cout<<"zstd"<<endl;
         zstd::zstd_compress(fixed_field_block_io.gt_block,fixed_field_block_compress.gt_block);
-        cout<<fixed_field_block_compress.no_variants<<":"<<fixed_field_block_io.gt_block.size()<<":"<<fixed_field_block_compress.gt_block.size()<<endl;
+        // cout<<fixed_field_block_compress.no_variants<<":"<<fixed_field_block_io.gt_block.size()<<":"<<fixed_field_block_compress.gt_block.size()<<endl;
         fixed_field_block_compress.gt_block.emplace_back(1);
     }
-    // cout<<sort_fixed_field_block_id<<":"<<fixed_field_block_io.gt_block.size()<<endl;
-    comp_sort_block_queue.Push(fixed_field_block_id,fixed_field_block_compress);
+    writeTempFlie(fixed_field_block_compress);
+    // comp_sort_block_queue.Push(fixed_field_block_id,fixed_field_block_compress);
     fixed_field_block_compress.Clear();    
     return true;
+}
+//把fixed_field_block_compress写入到中间过度文件中
+bool Compressor::writeTempFlie(fixed_field_block &fixed_field_block_io){
+
+    uint64_t offset = ftell(temp_file) + sizeof(uint64_t);
+    
+    uint64_t start_offset = ftell(temp_file);
+    size_t comp_size = 0;
+    fwrite(&offset, sizeof(offset), 1, temp_file);
+    
+    fwrite(&fixed_field_block_io.no_variants, sizeof(uint32_t), 1, temp_file);
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.chrom.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.chrom.data(), 1, fixed_field_block_io.chrom.size(), temp_file);
+    
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.pos.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.pos.data(), 1, fixed_field_block_io.pos.size(), temp_file);
+
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.id.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.id.data(), 1, fixed_field_block_io.id.size(), temp_file);
+
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.ref.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.ref.data(), 1, fixed_field_block_io.ref.size(), temp_file);
+
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.alt.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.alt.data(), 1, fixed_field_block_io.alt.size(), temp_file);
+
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.qual.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.qual.data(), 1, fixed_field_block_io.qual.size(), temp_file);
+
+    comp_size = static_cast<uint32_t>(fixed_field_block_io.gt_block.size());
+    fwrite(&comp_size, sizeof(uint32_t), 1, temp_file);
+    fwrite(fixed_field_block_io.gt_block.data(), 1, fixed_field_block_io.gt_block.size(), temp_file);
+    
+    offset = ftell(temp_file) - offset;
+
+    fseek(temp_file, start_offset, SEEK_SET);
+  
+    fwrite(&offset, sizeof(offset), 1, temp_file);
+    fseek(temp_file, 0, SEEK_END);
+
+    return  true;
+
 }
