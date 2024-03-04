@@ -81,7 +81,7 @@ Filter options::
         -i [ID=^]                       report only sites with ID equal to ID(for example: -i "ID=rs6040355")(default: all)
 ```
 ## Example
-There is an example VCF/VCF.gz/BCF file, toy.vcf/toy.vcf.gz/toy.bcf, in the toy_ex folder, which can be used to test GSC
+There is an example VCF/VCF.gz/BCF file, `toy.vcf`/`toy.vcf.gz`/`toy.bcf`, in the toy folder, which can be used to test GSC
 ### compress
 
 lossless compression:
@@ -89,12 +89,17 @@ lossless compression:
 The input file format is VCF:
 ./gsc compress -o toy/toy_compress_result toy/toy.vcf
 ```
+The compressed file includes:
+* `toy_gsc.gti` - The description of genotype and fixed variant field information,
+* `toy_gsc.dbs ` - The description of other data fields information.
+
 lossly compression:
 ```bash
 The input file format is VCF:
-./gsc compress -M -o toy/toy_compress_result toy/toy.vcf
-
+./gsc compress -M -o toy/toy_gsc toy/toy.vcf
 ```
+The compressed file includes:
+* `toy_gsc.gti` - The description of genotype and fixed variant field information.
 ### Decompress
 lossless decompression:
 ```bash
