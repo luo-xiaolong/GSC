@@ -6,7 +6,7 @@ Genotype Sparse Compression (GSC) is an advanced tool for lossless compression o
 - **Compiler Compatibility**: GSC requires a modern C++14-ready compiler, such as:
   - g++ version 10.1.0 or higher
 
-- **Build System**: CMake build system is necessary for compiling GSC.
+- **Build System**: Make build system is necessary for compiling GSC.
 
 - **Operating System**: GSC supports 64-bit operating systems, including:
   - Linux (Ubuntu)
