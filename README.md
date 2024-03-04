@@ -96,11 +96,11 @@ The input file format is VCF:
 
 ```
 ### Decompress
-lossless compression:
+lossless decompression:
 ```bash
-./gsc compress -o toy/toy_decompress_result toy/toy_compress_result
+./gsc decompress -o toy/toy_decompress_result toy/toy_compress_result
 ```
-lossly compression:
+lossly decompression:
 ```bash
-./gsc compress -M -o toy/toy_decompress_result toy/toy_compress_result
+./gsc decompress -M -o toy/toy_decompress_result toy/toy_compress_result
 ```
