@@ -81,8 +81,26 @@ Filter options::
         -i [ID=^]                       report only sites with ID equal to ID(for example: -i "ID=rs6040355")(default: all)
 ```
 ## Example
-There is an example VCF/VCF.GZ/BCF file, toy.vcf/toy.vcf.gz/toy.bcf, in the toy_ex folder, which can be used to test GSC
-compress
+There is an example VCF/VCF.gz/BCF file, toy.vcf/toy.vcf.gz/toy.bcf, in the toy_ex folder, which can be used to test GSC
+### compress
+
+lossless compression:
 ```bash
-./gsc compress -o 
+The input file format is VCF:
+./gsc compress -o toy/toy_compress_result toy/toy.vcf
+```
+lossly compression:
+```bash
+The input file format is VCF:
+./gsc compress -M -o toy/toy_compress_result toy/toy.vcf
+
+```
+### Decompress
+lossless compression:
+```bash
+./gsc compress -o toy/toy_decompress_result toy/toy_compress_result
+```
+lossly compression:
+```bash
+./gsc compress -M -o toy/toy_decompress_result toy/toy_compress_result
 ```
