@@ -36,7 +36,7 @@ Compress usage:
 
 
 Mode options: 
-        -M,  --mode_lossly               choose lossy compression mode (lossless compression mode by default)
+        -M,  --mode_lossy               choose lossy compression mode (lossless compression mode by default)
 
 Input\Output options: 
         [in_file]                        path to input file (a VCF or VCF.GZ file by default)
@@ -57,7 +57,7 @@ Decompress and Query usage:
         gsc decompress <options> [out_file] [in_file]
 
 Mode options: 
-        -M,  --mode_lossly              choose lossy compression mode (lossless compression mode by default)
+        -M,  --mode_lossy              choose lossy compression mode (lossless compression mode by default)
 
 Input\Output options: 
         [in_file]                       path to input file (prefix of the file name to be decompressed)
@@ -69,7 +69,7 @@ Input\Output options:
         -C,  --out-ac-an                write AC/AN to the INFO field (always set when using -minAC, -maxAC, -minAF or -maxAF)
         -S,  --split                    split output into multiple files (one per chromosome)
 
-Filter options:: 
+Filter options: 
         -r,  --range [X]                range in format [start],[end] (for example: -r 4999756,4999852). By default all variants are decompressed.
         -s,  --samples [X]              samples separated by comms (for example: -s HG03861,NA18639) OR '@' sign followed by the name of a file with sample name(s) separated by whitespaces (for exaple: -s @file_with_IDs.txt). By default all samples/individuals are decompressed
         --minAC [X]                     report only sites with count of alternate alleles among selected samples smaller than or equal to X (default: no limit)
@@ -87,25 +87,29 @@ There is an example VCF/VCF.gz/BCF file, `toy.vcf`/`toy.vcf.gz`/`toy.bcf`, in th
 lossless compression:
 ```bash
 The input file format is VCF:
-./gsc compress -o toy/toy_compress_result toy/toy.vcf
+./gsc compress -o toy/toy_lossless toy/toy.vcf
 ```
-The compressed file includes:
-* `toy_gsc.gti` - The description of genotype and fixed variant field information,
-* `toy_gsc.dbs ` - The description of other data fields information.
+This will create two files:
+* `toy_lossless.gti` - The description of genotype and fixed variant field information,
+* `toy_lossless.dbs ` - The description of other data fields information.
 
-lossly compression:
+lossy compression:
 ```bash
 The input file format is VCF:
-./gsc compress -M -o toy/toy_gsc toy/toy.vcf
+./gsc compress -M -o toy/toy_lossy toy/toy.vcf
 ```
-The compressed file includes:
-* `toy_gsc.gti` - The description of genotype and fixed variant field information.
+This will create a file:
+* `toy_lossy.gti` - The description of genotype and fixed variant field information.
 ### Decompress
 lossless decompression:
+
+To decompress the compressed toy_lossless (which includes: toy_lossless.gti and toy_lossless.dbs) into a VCF file named toy_lossless_decomp.vcf:
 ```bash
-./gsc decompress -o toy/toy_decompress_result toy/toy_compress_result
+./gsc decompress -o toy/toy_lossless_decomp toy/toy_lossless
 ```
-lossly decompression:
+lossy decompression:
+
+To decompress the compressed toy_lossy (which include: toy_lossy.gti) into a VCF file named toy_lossy_decomp.vcf:
 ```bash
-./gsc decompress -M -o toy/toy_decompress_result toy/toy_compress_result
+./gsc decompress -M -o toy/toy_lossy_decomp toy/toy_lossy
 ```
