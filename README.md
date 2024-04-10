@@ -31,54 +31,59 @@ Available options:
 ```
 - Compress the input VCF/BCF file
 ```bash
-Compress usage: 
-        gsc compress <options> [out_file] [in_file]   
+Usage of gsc compress:
 
+        gsc compress [options] [--in [in_file]] [--out [out_file]]
 
-Mode options: 
-        -M,  --mode_lossy               choose lossy compression mode (lossless compression mode by default)
+Where:
 
-Input\Output options: 
-        [in_file]                        path to input file (a VCF or VCF.GZ file by default)
-        -b,  --bcf                       input is a BCF file (input is a VCF or VCF.GZ file by default)
-        -p,  --polidy [X]                set ploidy of samples in input VCF to [X] (number >= 1; 2 by default)
-        -o,  --out [out_file]            output to a file and set output out_file to [out_file] 
-        [out_file]                       path to output file 
+        [options]              Optional flags and parameters for compression.
+        -i,  --in [in_file]    Specify the input file (default: VCF or VCF.GZ). If omitted, input is taken from standard input (stdin).
+        -o,  --out [out_file]  Specify the output file. If omitted, output is sent to standard output (stdout).
 
+Options:
 
-Parameters options : 
-        -t,  --threads [X]               set number of threads to [X] (number >= 1; 2 by default)
-        -d,  --depth [X]                 set the maximum replication depth to [X] (number >= 0; 0 means no matches; 100 by default)
-        -m,  --merge [X]                 [X] separated by comms (for example: -m chr1.vcf,chr2.vcf) OR '@' sign followed by the name of a file with VCF file path separated by whitespaces (for exaple: -m @file_with_IDs.txt). By default all VCF flies are compressed
+        -M,  --mode_lossly     Choose lossy compression mode (lossless by default).
+        -b,  --bcf             Input is a BCF file (default: VCF or VCF.GZ).
+        -p,  --ploidy [X]      Set ploidy of samples in input VCF to [X] (default: 2).
+        -t,  --threads [X]     Set number of threads to [X] (default: 1).
+        -d,  --depth [X]       Set maximum replication depth to [X] (default: 100, 0 means no matches).
+        -m,  --merge [X]       Specify files to merge, separated by commas (e.g., -m chr1.vcf,chr2.vcf), or '@' followed by a file containing a list of VCF files (e.g., -m @file_with_IDs.txt). By default, all VCF files are compressed.
 ```
 - Decompress / Query
 ```bash
-Decompress and Query usage:
-        gsc decompress <options> [out_file] [in_file]
+Usage of gsc decompress and query:
 
-Mode options: 
-        -M,  --mode_lossy              choose lossy compression mode (lossless compression mode by default)
+        gsc decompress [options] --in [in_file] --out [out_file]
 
-Input\Output options: 
-        [in_file]                       path to input file (prefix of the file name to be decompressed)
-        -b,  --bcf                      output a BCF file and please use it together with param '-o' (output is a VCF file by default)
-        -o,  --out [out_file]           output to a file and set output out_file to [out_file] 
-        [out_file]                      you need to enter the output file path 
-        h\H, --header-only\--no-header  only output the header\don't output the header (only genotypes)
-        -G,  --no-genotype              don't output sample genotypes (only #CHROM, POS, ID, REF, ALT, QUAL, FILTER and INFO columns)
-        -C,  --out-ac-an                write AC/AN to the INFO field (always set when using -minAC, -maxAC, -minAF or -maxAF)
-        -S,  --split                    split output into multiple files (one per chromosome)
+Where:
+        [options]              Optional flags and parameters for compression.
+        -i,  --in [in_file]    Specify the input file . If omitted, input is taken from standard input (stdin).
+        -o,  --out [out_file]  Specify the output file (default: VCF). If omitted, output is sent to standard output (stdout).
 
-Filter options: 
-        -r,  --range [X]                range in format [start],[end] (for example: -r 4999756,4999852). By default all variants are decompressed.
-        -s,  --samples [X]              samples separated by comms (for example: -s HG03861,NA18639) OR '@' sign followed by the name of a file with sample name(s) separated by whitespaces (for exaple: -s @file_with_IDs.txt). By default all samples/individuals are decompressed
-        --minAC [X]                     report only sites with count of alternate alleles among selected samples smaller than or equal to X (default: no limit)
-        --maxAC [X]                     report only sites with count of alternate alleles among selected samples greater than or equal to X
-        --minAF [X]                     report only sites with allele frequency among selected samples greather than or equal to X (X - number between 0 and 1; default: 0)
-        --maxAF [X]                     report only sites with allele frequency among selected samples smaller than or equal to X (X - number between 0 and 1; default: 1)
-        --min-qual [X]                  report only sites with QUAL greater than or equal to X (default: 0)
-        --max-qual [X]                  report only sites with QUAL smaller than or equal to X (default: 1000000)
-        -i [ID=^]                       report only sites with ID equal to ID(for example: -i "ID=rs6040355")(default: all)
+Options:
+
+    General Options:
+
+        -M,  --mode_lossly      Choose lossy compression mode (default: lossless).
+        -b,  --bcf              Output a BCF file (default: VCF).
+
+    Filter options (applicable in lossy compression mode only): 
+
+        -r,  --range [X]        Specify range in format [start],[end] (e.g., -r 4999756,4999852).
+        -s,  --samples [X]      Samples separated by comms (e.g., -s HG03861,NA18639) OR '@' sign followed by the name of a file with sample name(s) separated by whitespaces (for exaple: -s @file_with_IDs.txt). By default all samples/individuals are decompressed. 
+        --header-only           Output only the header of the VCF/BCF.
+        --no-header             Output without the VCF/BCF header (only genotypes).
+        -G,  --no-genotype      Don't output sample genotypes (only #CHROM, POS, ID, REF, ALT, QUAL, FILTER, and INFO columns).
+        -C,  --out-ac-an        Write AC/AN to the INFO field.
+        -S,  --split            Split output into multiple files (one per chromosome).
+        -I, [ID=^]              Include only sites with specified ID (e.g., -I "ID=rs6040355").
+        --minAC [X]             Include only sites with AC <= X.
+        --maxAC [X]             Include only sites with AC >= X.
+        --minAF [X]             Include only sites with AF >= X (X: 0 to 1).
+        --maxAF [X]             Include only sites with AF <= X (X: 0 to 1).
+        --min-qual [X]          Include only sites with QUAL >= X.
+        --max-qual [X]          Include only sites with QUAL <= X.
 ```
 ## Example
 There is an example VCF/VCF.gz/BCF file, `toy.vcf`/`toy.vcf.gz`/`toy.bcf`, in the toy folder, which can be used to test GSC
@@ -89,9 +94,8 @@ lossless compression:
 The input file format is VCF:
 ./gsc compress -o toy/toy_lossless toy/toy.vcf
 ```
-This will create two files:
-* `toy_lossless.gti` - The description of genotype and fixed variant field information,
-* `toy_lossless.dbs ` - The description of other data fields information.
+This will create a file:
+* `toy_lossless.gsc` - The compressed archive of the entire VCF file.
 
 lossy compression:
 ```bash
@@ -99,7 +103,7 @@ The input file format is VCF:
 ./gsc compress -M -o toy/toy_lossy toy/toy.vcf
 ```
 This will create a file:
-* `toy_lossy.gti` - The description of genotype and fixed variant field information.
+* `toy_lossy.gsc` - The compressed archive of the entire VCF file.
 ### Decompress
 lossless decompression:
 
