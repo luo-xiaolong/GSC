@@ -89,31 +89,61 @@ Options:
 There is an example VCF/VCF.gz/BCF file, `toy.vcf`/`toy.vcf.gz`/`toy.bcf`, in the toy folder, which can be used to test GSC
 ### compress
 
-lossless compression:
-```bash
-The input file format is VCF:
-./gsc compress -o toy/toy_lossless toy/toy.vcf
-```
+#### lossless compression:
+The input file format is VCF. You can compress a VCF file in lossless mode using one of the following methods:
+1. **Explicit input and output file parameters**:
+   
+   Use the `--in` option to specify the input VCF file and the `--out` option for the output compressed file.
+   ```bash
+   ./gsc compress --in toy/toy.vcf --out toy/toy_lossless.gsc
+   ```
+2. **Input file parameter and output redirection**:
+   
+   Use the `--out` option for the output compressed file and redirect the input VCF file into the command.
+   ```bash
+   ./gsc compress --out toy/toy_lossless.gsc < toy/toy.vcf
+   ```
+3. **Output file redirection and input file parameter**:
+   
+   Specify the input VCF file with the `--in` option and redirect the output to create the compressed file.
+   ```bash
+   ./gsc compress --in toy/toy.vcf > toy/toy_lossless.gsc
+   ```
+4. **Input and output redirection**:
+   
+   Use shell redirection for both input and output. This method does not use the `--in` and `--out` options.
+   ```bash
+   ./gsc compress < toy/toy.vcf > toy/toy_lossless.gsc
+   ```
 This will create a file:
 * `toy_lossless.gsc` - The compressed archive of the entire VCF file.
 
-lossy compression:
-```bash
-The input file format is VCF:
-./gsc compress -M -o toy/toy_lossy toy/toy.vcf
-```
-This will create a file:
-* `toy_lossy.gsc` - The compressed archive of the entire VCF file.
-### Decompress
+#### lossy compression:
+
+The input file format is VCF. The commands are similar to those used for lossless compression, with the addition of the `-M` parameter to enable lossy compression.
+
+   For example, to compress a VCF file in lossy mode:
+
+   ```bash
+   ./gsc compress -M --in toy/toy.vcf --out toy/toy_lossy.gsc
+   ```
+   Or using redirection:
+   ```bash
+   ./gsc compress -M --out toy/toy_lossy.gsc < toy/toy.vcf
+   ``` 
+   This will create a file:
+   * `toy_lossy.gsc` - The compressed archive of the entire VCF file.
+    
+### Decompress   (The commands are similar to those used for compression)
 lossless decompression:
 
-To decompress the compressed toy_lossless (which includes: toy_lossless.gti and toy_lossless.dbs) into a VCF file named toy_lossless_decomp.vcf:
+To decompress the compressed toy_lossless.gsc into a VCF file named toy_lossless.vcf:
 ```bash
-./gsc decompress -o toy/toy_lossless_decomp toy/toy_lossless
+./gsc decompress --in toy/toy_lossless.gsc --out toy/toy_lossless.vcf
 ```
 lossy decompression:
 
-To decompress the compressed toy_lossy (which include: toy_lossy.gti) into a VCF file named toy_lossy_decomp.vcf:
+To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
-./gsc decompress -M -o toy/toy_lossy_decomp toy/toy_lossy
+./gsc decompress -M --in toy/toy_lossy.gsc --out toy/toy_lossy.vcf
 ```
