@@ -82,11 +82,11 @@ class Compressor
     int cur_block_id = 0;
 
 
-    //压缩Meta
+
     vector<uint8_t> all_v_header, comp_v_header;
 	vector<uint8_t> all_v_samples, comp_v_samples;
 
-    //统计压缩后各字段的大小（单位BYTE）
+
     uint64_t Meta_comp_size = 0;
     uint64_t CHORM_comp_size = 0;
     uint64_t POS_comp_size = 0;

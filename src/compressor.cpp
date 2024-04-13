@@ -70,17 +70,17 @@ bool Compressor::writeCompressFlie()
     
     uint64_t size;
     uint8_t *temp_buffer = NULL;
-    while (fread(&size, sizeof(size), 1, temp_file) == 1) { // 读取块的大小
+    while (fread(&size, sizeof(size), 1, temp_file) == 1) { 
         chunks_streams[curr_no_blocks+1].offset = ftell(comp);
         
-        temp_buffer = (uint8_t*)realloc(temp_buffer, size); // 根据需要分配或重新分配缓冲区
+        temp_buffer = (uint8_t*)realloc(temp_buffer, size);
         if (!temp_buffer) {
             perror("Memory allocation failed");
             fclose(temp_file);
             return 1;
         }
 
-        if (fread(temp_buffer, 1, size, temp_file) != size) { // 读取数据块
+        if (fread(temp_buffer, 1, size, temp_file) != size) { 
             perror("Error reading data block");
             free(temp_buffer);
             fclose(temp_file);
@@ -153,11 +153,11 @@ bool Compressor::writeCompressFlie()
     // remove(temp_file1_fname);
     other_fields_offset = ftell(comp);
 
-	FILE *other_f = fopen(temp_file2_fname.c_str(),"rb"); //读存储其它字段注释信息的文件指针
+	FILE *other_f = fopen(temp_file2_fname.c_str(),"rb"); 
     
     if (other_f) {
-        // 读取源文件并写入目标文件
-        const size_t buffer_size = 1024; // 或者更大的缓冲区，取决于文件大小和内存限制
+     
+        const size_t buffer_size = 1024; 
         char buffer[buffer_size];
         size_t bytes_read;
         while ((bytes_read = fread(buffer, 1, buffer_size, other_f)) > 0) {
@@ -195,7 +195,7 @@ bool Compressor::writeCompressFlie()
         comp = nullptr;
     }
     if (is_stdout) {
-        // 直接操作标准输出
+     
         for (int v = 0; v < 2; v++) {
             sdsl::rrr_vector<> rrr_bit_vector(zeros_only_bit_vector[v]);
             rrr_bit_vector.serialize(std::cout);
@@ -207,7 +207,7 @@ bool Compressor::writeCompressFlie()
             sdsl::util::clear(rrr_bit_vector);
         }
     } else {
-        // 使用文件流进行操作
+   
         sdsl::osfstream out(fname, std::ios::binary | std::ios::app);
         if (!out) {
             if (sdsl::util::verbose) {
@@ -299,7 +299,7 @@ bool Compressor::OpenForWriting(const string &out_file_name)
         exit(1);
     }
 
-    // 写入文件
+
     mode_type = false;
 
     fwrite(&mode_type, sizeof(mode_type), 1, comp);
@@ -1055,7 +1055,7 @@ bool Compressor::compressFixedFields(fixed_field_block &fixed_field_block_io){
     fixed_field_block_compress.Clear();    
     return true;
 }
-//把fixed_field_block_compress写入到中间过度文件中
+
 bool Compressor::writeTempFlie(fixed_field_block &fixed_field_block_io){
 
     uint64_t offset = ftell(temp_file) + sizeof(uint64_t);

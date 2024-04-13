@@ -66,7 +66,7 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
     
 
-    const uint32_t MC_ARRAY_SIZE = (max_no_vec_in_block+63) / 64;           //2022年8月4日新添加
+    const uint32_t MC_ARRAY_SIZE = (max_no_vec_in_block+63) / 64;          
 
     uint64_t part_vec = id_stop - id_start;
 
@@ -80,7 +80,7 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
     // empty_vec.fill(0);
 
-    empty_vec.resize(MC_ARRAY_SIZE, 0);                        //2022年8月4日新添加
+    empty_vec.resize(MC_ARRAY_SIZE, 0);                        
 
     mc_vectors.resize(n_h_samples, empty_vec);
     // new_mc_vectors.resize(n_h_samples, empty_vec);
@@ -120,7 +120,7 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
     // random_shuffle(mc_ids.begin(), mc_ids.end());
 
-    uint32_t mc_sort_size = mc_ids.size() >  max_no_vec_in_block ? max_no_vec_in_block  : mc_ids.size(); //原PART_TRIALS（在defs.h中）修改为n_h_samples
+    uint32_t mc_sort_size = mc_ids.size() >  max_no_vec_in_block ? max_no_vec_in_block  : mc_ids.size(); 
 
     // sort(mc_ids.begin(), mc_ids.begin() + mc_sort_size);
     // cout<<"mc_sort_size:"<<mc_sort_size<<endl;
@@ -245,7 +245,7 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
             {
 
-                uint64_t cost = bit_cost(mc_vectors[p->first], mc_vectors[p_up->first], best_cost,new_xor);//2022年8月16日新添加vector<uint64_t>& new_xor，为了得到异或后的矩阵
+                uint64_t cost = bit_cost(mc_vectors[p->first], mc_vectors[p_up->first], best_cost,new_xor);
                 if (cost < best_cost)
 
                 {
@@ -268,7 +268,7 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
             else
             {
-                uint64_t cost = bit_cost(mc_vectors[p->first], mc_vectors[p_down->first], best_cost,new_xor); //2022年8月16日新添加vector<uint64_t>& new_xor，为了得到异或后的矩阵
+                uint64_t cost = bit_cost(mc_vectors[p->first], mc_vectors[p_down->first], best_cost,new_xor);
                 
                 if (cost < best_cost)
 
@@ -513,9 +513,9 @@ void BlockProcess::ProcessLastBlock(vector<bool> &zeros, vector<bool> &copies, v
                     }
                 }
                 sparse_matrix_cols.emplace_back(0);
-//////////////////////////////////////////////////////////////////////////////////此处新增加差分2022.09.21
-            //     uint8_t first_prev_index = 0;            //此处新增加差分2022.09.21
-            //     uint8_t second_prev_index =0;            //此处新增加差分2022.09.22
+
+            //     uint8_t first_prev_index = 0;            
+            //     uint8_t second_prev_index =0;            
 
             //     for(size_t t = 0 ;t<params.vec_len*8;t++){
             //     // cout<<new_mc_vectors[t][cur_arr_id]<<endl;
@@ -524,11 +524,11 @@ void BlockProcess::ProcessLastBlock(vector<bool> &zeros, vector<bool> &copies, v
 
             //         if(cur_vec[t/8] & perm_lut8[cur_arr_pos]){
 
-            //             // // comp_samples_indexes[no_samples_index++] = t & 0xffu;   //09.21注释，没进行差分
+            //             // // comp_samples_indexes[no_samples_index++] = t & 0xffu;  
                         
             //             // // comp_samples_indexes[no_samples_index++] = (t >>8) & 0xffu;
 
-            //             comp_samples_indexes[no_samples_index++] = (t & 0xffu)-first_prev_index;  //此处新增加差分2022.09.21
+            //             comp_samples_indexes[no_samples_index++] = (t & 0xffu)-first_prev_index;  
                         
             //             first_prev_index = (t & 0xffu) ;
 

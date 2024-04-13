@@ -323,7 +323,7 @@ bool Decompressor::decompressProcess()
         }
     }));
 
-    //用智能指针创建线程
+
     unique_ptr<thread> process_thread(new thread([&]{
         while (cur_chunk_id < end_chunk_id)
         {
@@ -437,7 +437,7 @@ bool Decompressor::Close(){
 //     return true;
 // }
 
-// 建立异或表
+
 // *****************************************************************************************************************
 void Decompressor::initialXORLut(){
 
@@ -1169,7 +1169,7 @@ int Decompressor::decompressAll(){
     int vec1_start,vec2_start=decompression_reader.vec_len;
     fields_pos  = 0;
     vector<uint8_t> my_str(standard_block_size);
-    // vector<uint32_t> rev_perm(standard_block_size);  //2024.1.16注释
+    // vector<uint32_t> rev_perm(standard_block_size);  
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
                 rrr_rank_zeros_bit_vector[1](start_chunk_actual_pos) -rrr_rank_copy_bit_vector[0](start_chunk_actual_pos) - 
                 rrr_rank_copy_bit_vector[1](start_chunk_actual_pos);
@@ -1277,7 +1277,7 @@ int Decompressor::decompressRange(const string &range)
     uint32_t start_var = 0;
     int vec1_start,vec2_start;
     bool skip_processing = false;
-    // vector<uint32_t> rev_perm(standard_block_size);  //2024.1.16注释
+    // vector<uint32_t> rev_perm(standard_block_size);  
     vector<uint8_t> my_str(standard_block_size);
 
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
@@ -1351,7 +1351,7 @@ int Decompressor::decompressRange(const string &range)
         {
             cur_block_id = cur_var / standard_block_size;
                            
-            // reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size); //2024.1.16
+            // reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size); 
     
             for(;cur_var < no_var;++cur_var){
                 vec2_start = decompression_reader.vec_len;
@@ -1447,7 +1447,7 @@ int Decompressor::decompressRange(const string &range)
         }       
 
         cur_vec_id = (start_chunk_actual_pos + start_var) * 2;
-        // bool  tail_flag = true; //2024.1.16注释
+        // bool  tail_flag = true; 
         for (size_t cur_var = start_var;cur_var < no_var; cur_var++)
         {
 
@@ -1456,7 +1456,7 @@ int Decompressor::decompressRange(const string &range)
             //     reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
             //     sort_perm_io[cur_block_id] = rev_perm;
             //     tail_flag = false;
-            // }                                  //2024.1.16注释
+            // }                                
             
             vec2_start = decompression_reader.vec_len;
             fill_n(decomp_data, decompression_reader.vec_len*2, 0);
@@ -1627,7 +1627,7 @@ int Decompressor::decompressSampleSmart(const string &range)
                     curr_copy = rrr_rank_copy_bit_vector[0](id + ((parity))) + rrr_rank_copy_bit_vector[1](id);
                 }
                 unique_pos_first_in_block = first_vec_in_block - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
-                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size) //2024.1.16注释
+                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size) 
                 //     rev_perm = sort_perm_io[cur_block_id];
                 // else
                 reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
@@ -1701,7 +1701,7 @@ int Decompressor::decompressSampleSmart(const string &range)
             //         {
             //             uint32_t gt_pos = rev_perm[samples_start+p] % 8;
             //             gt_variant_data[r_i] = gt_lookup_table[resAll[r_i]][resAll[r_i + no_haplotypes]][gt_pos];
-            //             // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos,standard_block_size); // 2022年9月15日新增
+            //             // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos,standard_block_size); 
 
             //         }
             //     }
@@ -1716,7 +1716,7 @@ int Decompressor::decompressSampleSmart(const string &range)
                     resAll[r_i] = map_t256[resAll[r_i]];
                     resAll[r_i + no_haplotypes] = map_t256[resAll[r_i + no_haplotypes]];
                     gt_variant_data[r_i] = gt_lookup_table[resAll[r_i]][resAll[r_i + no_haplotypes]][gt_pos];
-                    // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos, standard_block_size); // 2022年9月15日新增
+                    // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos, standard_block_size); 
 
                 }
             }
@@ -1768,7 +1768,7 @@ int Decompressor::decompressSampleSmart(const string &range)
                 }
 
                 unique_pos_first_in_block = first_vec_in_block - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
-                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size)  //2024.1.16注释
+                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size)  
                 //     rev_perm = sort_perm_io[cur_block_id];                                                  
                 // else
                 reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
@@ -1829,7 +1829,7 @@ int Decompressor::decompressSampleSmart(const string &range)
             //         {
             //             uint32_t gt_pos = rev_perm[samples_start+ p] % 8;
             //             gt_variant_data[r_i] = gt_lookup_table[resAll[r_i]][resAll[r_i + no_haplotypes]][gt_pos];
-            //             // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos,standard_block_size); // 2022年9月15日新增
+            //             // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos,standard_block_size); 
 
             //         }
             //     }
@@ -1844,7 +1844,7 @@ int Decompressor::decompressSampleSmart(const string &range)
                     resAll[r_i] = map_t256[resAll[r_i]];
                     resAll[r_i + no_haplotypes] = map_t256[resAll[r_i + no_haplotypes]];
                     gt_variant_data[r_i] = gt_lookup_table[resAll[r_i]][resAll[r_i + no_haplotypes]][gt_pos];
-                    // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos, standard_block_size); // 2022年9月15日新增
+                    // getSamplesGT(gt_variant_data[r_i], resAll[r_i], resAll[r_i + no_haplotypes],gt_pos, standard_block_size); 
 
                 }
             }
@@ -2429,14 +2429,13 @@ int Decompressor::initOutSplitFile(){
 }
 // *****************************************************************************************************************
 void Decompressor::WriteBEDMagicNumbers() {
-    // 写入前两个固定的魔术数字字节
+
     out_bed.PutByte(0x6C);  // 01101100
     out_bed.PutByte(0x1B);  // 00011011
-    
-    // 写入第三个字节，这里我们假设以样本为主的存储格式
+
     out_bed.PutByte(0x01);  // 00000001
 
-    // 如果你需要写入以SNP为主的存储格式，那么你会使用
+
     // PutByte(0x00);  // 00000000
 }
 int Decompressor::initOut()
@@ -2630,7 +2629,7 @@ void Decompressor::decoded_vector_row(uint64_t vec_id, uint64_t offset, uint64_t
     }
     delete[] cur_decomp_data;
 }
-//获取原始每行数据的字节
+
 // *****************************************************************************************************************
 void Decompressor::decode_perm_rev(int vec2_start, const vector<uint32_t> &rev_perm, uint8_t *decomp_data_perm, uint8_t *decomp_data) 
 {
@@ -2678,7 +2677,7 @@ void Decompressor::decode_perm_rev(int vec2_start, const vector<uint32_t> &rev_p
     }
     
 }
-//获取原始的perm顺序
+
 // *****************************************************************************************************************
 void inline Decompressor::reverse_perm(const vector<uint32_t> &perm, vector<uint32_t> &rev_perm, int no_haplotypes)
 {
