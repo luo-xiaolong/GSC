@@ -132,7 +132,7 @@ The input file format is VCF. The commands are similar to those used for lossles
    ./gsc compress -M --out toy/toy_lossy.gsc < toy/toy.vcf
    ``` 
    This will create a file:
-   * `toy_lossy.gsc` - The compressed archive of the entire VCF file.
+   * `toy_lossy.gsc` - The compressed archive of the entire VCF file is implemented with lossy compression. It only retains the 'GT' subfield within the INFO and FORMAT fields, and excludes all other subfields..
     
 ### Decompress   (The commands are similar to those used for compression)
 lossless decompression:
