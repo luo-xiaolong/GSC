@@ -51,7 +51,7 @@ public:
 	File_Handle_2(bool _input_mode);
 	~File_Handle_2();
 
-	bool Open(string _file_name);
+	bool Open(const string& temp_file2_fname);
 	bool Close();
 
 	int RegisterStream(string stream_name);

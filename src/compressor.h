@@ -14,6 +14,7 @@
 #include <tuple>
 #include "bsc.h"
 #include "zstd_compress.h"
+// #include <filesystem>
 using namespace std;
 
 class Compressor
@@ -27,10 +28,14 @@ class Compressor
     vector<thread> block_process_thread;
 
     FILE *comp = nullptr;
+    bool is_stdout = false;
     FILE *temp_file = nullptr;
     uint64_t sdsl_offset;
-    char *fname = nullptr;
-    char *fname1 = nullptr;
+    uint64_t other_fields_offset;
+    bool mode_type;
+    string fname ;
+    char *temp_file1_fname = nullptr;
+    string temp_file2_fname;
     File_Handle_2 * file_handle2 = nullptr;
 
 
@@ -140,10 +145,10 @@ public:
 
 	    if (file_handle2)
 		    delete file_handle2;
-        if(fname)
-            free(fname);
-        if(fname1)
-            free(fname1);
+        // if(fname)
+        //     free(fname);
+        if(temp_file1_fname)
+            free(temp_file1_fname);
         // if(comp)
         //     fclose(comp);
            

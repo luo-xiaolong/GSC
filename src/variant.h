@@ -90,9 +90,9 @@ typedef struct field_desc_tag {
     char *data = nullptr;
     uint32_t data_size = 0; //current size of allocated memory
 
-    //构造函数
+
     field_desc_tag() = default;
-    // //拷贝构造函数
+
     field_desc_tag(field_desc_tag& other) {
         // cout<<"copy"<<endl;
         if (data_size) {
@@ -109,7 +109,7 @@ typedef struct field_desc_tag {
         }
 
     }
-    //移动构造函数
+  
     field_desc_tag(field_desc_tag&& other) noexcept
     {
         // cout<<"Move"<<endl;
@@ -134,7 +134,7 @@ typedef struct field_desc_tag {
         }
         return *this;
     }
-    //析构函数
+
     ~field_desc_tag() {
         // cout<<"~field_desc_tag"<<endl;
         if(data != nullptr){
@@ -143,7 +143,7 @@ typedef struct field_desc_tag {
             data = nullptr;
         }
     }
-    // //写一个赋值深度拷贝的函数
+
     // field_desc_tag& operator=(const field_desc_tag& other) {
     //     if (this != &other) {
     //         if (data_size) {
@@ -354,7 +354,7 @@ struct SPackage {
 //     uint32_t num_rows;
 //     vector<variant_desc_t> v_vcf_data_compress;
 //     FieldsPackage() = default;
-//     //拷贝构造函数
+
 //     FieldsPackage(uint32_t _block_id, int64_t _data_size, uint8_t* _data, uint32_t _num_rows, const vector<variant_desc_t>& _v_vcf_data_compress) 
 //     : block_id(_block_id), data_size(_data_size), num_rows(_num_rows), v_vcf_data_compress(_v_vcf_data_compress)
 //     {
@@ -375,7 +375,7 @@ struct SPackage {
 //     //     num_rows = other.num_rows;
 //     //     v_vcf_data_compress = other.v_vcf_data_compress;
 //     // }
-//     //析构函数
+
 //     ~FieldsPackage() {
        
 

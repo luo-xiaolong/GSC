@@ -6,8 +6,8 @@
 //write the compressed file
 bool Compressor::writeCompressFlie()
 {
-    cout << "The BSC algorithm was used to compress the genotype part" << endl;
-    cout << "Gt_index_original_size:" << toal_all_size<< endl;
+    std::cerr << "The BSC algorithm was used to compress the genotype part" << endl;
+    // cout << "Gt_index_original_size:" << toal_all_size<< endl;
 
     uint32_t curr_no_blocks = 0;
     uint32_t where_chrom_size = static_cast<uint32_t>(where_chrom.size());
@@ -50,6 +50,7 @@ bool Compressor::writeCompressFlie()
     fwrite(&vint_last_perm_size, sizeof(uint32_t), 1, comp);
     for (const auto &data : vint_last_perm)
     {
+
         fwrite(&data.first, sizeof(uint32_t), 1, comp);
         uint32_t data_size = static_cast<uint32_t>(data.second.size());
         fwrite(&data_size, sizeof(uint32_t), 1, comp);
@@ -91,7 +92,7 @@ bool Compressor::writeCompressFlie()
 
     // while (comp_sort_block_queue.Pop(fixed_field_block_id,fixed_field_block_io))
     // {
-    //     // cout<<"fixed_fixed_field_block_id: "<<fixed_fixed_field_block_id<<":"<<sort_fixed_field_block_id<<endl;
+    //     // std::cerr<<"fixed_fixed_field_block_id: "<<fixed_fixed_field_block_id<<":"<<sort_fixed_field_block_id<<endl;
     //     assert(fixed_field_block_id == curr_no_blocks);
     //     chunks_streams[curr_no_blocks+1].offset = ftell(comp);
     //     curr_no_blocks++;
@@ -135,69 +136,136 @@ bool Compressor::writeCompressFlie()
     //     fwrite(&comp_size, sizeof(uint32_t), 1, comp);
     //     fwrite(fixed_field_block_io.gt_block.data(), 1, fixed_field_block_io.gt_block.size(), comp);
     // }
-    // cout << "Meta_comp_size:    " << Meta_comp_size <<"\tByte"<<endl;
-    // cout << "CHORM_comp_size:   " << CHORM_comp_size <<"\tByte"<< endl;
-    // cout << "POS_comp_size:     " << POS_comp_size <<"\tByte"<< endl;
-    // cout << "ID_comp_size:      " << ID_comp_size <<"\tByte"<< endl;
-    // cout << "REF_comp_size:     " << REF_comp_size <<"\tByte"<< endl;
-    // cout << "ALT_comp_size:     " << ALT_comp_size <<"\tByte"<< endl;
-    // cout << "QUAL_comp_size:    " << QUAL_comp_size <<"\tByte"<< endl;
+    // std::cerr << "Meta_comp_size:    " << Meta_comp_size <<"\tByte"<<endl;
+    // std::cerr << "CHORM_comp_size:   " << CHORM_comp_size <<"\tByte"<< endl;
+    // std::cerr << "POS_comp_size:     " << POS_comp_size <<"\tByte"<< endl;
+    // std::cerr << "ID_comp_size:      " << ID_comp_size <<"\tByte"<< endl;
+    // std::cerr << "REF_comp_size:     " << REF_comp_size <<"\tByte"<< endl;
+    // std::cerr << "ALT_comp_size:     " << ALT_comp_size <<"\tByte"<< endl;
+    // std::cerr << "QUAL_comp_size:    " << QUAL_comp_size <<"\tByte"<< endl;
     // cout << "GT_index_comp_size:      " << GT_comp_size <<"\tByte"<< endl;
     free(temp_buffer);
     fclose(temp_file);
-    remove(fname1);
-    uint64_t end_offset = ftell(comp);
-    sdsl_offset = end_offset;
+    if (remove(temp_file1_fname) != 0) {
+        perror("Error deleting temp1 file");
+        return EXIT_FAILURE;
+    }
+    // remove(temp_file1_fname);
+    other_fields_offset = ftell(comp);
+
+	FILE *other_f = fopen(temp_file2_fname.c_str(),"rb"); //读存储其它字段注释信息的文件指针
+    
+    if (other_f) {
+        // 读取源文件并写入目标文件
+        const size_t buffer_size = 1024; // 或者更大的缓冲区，取决于文件大小和内存限制
+        char buffer[buffer_size];
+        size_t bytes_read;
+        while ((bytes_read = fread(buffer, 1, buffer_size, other_f)) > 0) {
+            fwrite(buffer, 1, bytes_read, comp);
+        }
+        fclose(other_f);
+        other_f = nullptr;
+        if (remove(temp_file2_fname.c_str()) != 0) {
+            perror("Error deleting temp2 file");
+            return EXIT_FAILURE;
+        }
+
+        mode_type = true;
+    }   
+    
+    sdsl_offset = ftell(comp);
+    
+    // sdsl_offset = end_offset;
     fseek(comp, 0, SEEK_SET);
+    fwrite(&mode_type, sizeof(mode_type), 1, comp);
+    fwrite(&other_fields_offset, sizeof(other_fields_offset), 1, comp);
     fwrite(&sdsl_offset, sizeof(sdsl_offset), 1, comp);
-    fseek(comp, 12, SEEK_SET);
+    std::cerr<<int(mode_type) <<" " << other_fields_offset <<" " << sdsl_offset <<endl;
+    fseek(comp, 21, SEEK_SET);
     for(auto cur_chunk:chunks_streams)
     {
         fwrite(&cur_chunk.second.cur_chunk_actual_pos, sizeof(uint32_t), 1, comp);
         fwrite(&cur_chunk.second.offset, sizeof(size_t), 1, comp);
     }
     fseek(comp, 0, SEEK_END);
-    
-    if (comp)
+
+    if (comp && comp != stdout)
     {
         fclose(comp);
         comp = nullptr;
     }
-
-    sdsl::osfstream out(fname, std::ios::binary | std::ios::app);
-    if (!out)
-    {
-        if (sdsl::util::verbose)
-        {
-        std::cerr << "ERROR: store_to_file not successful for: `" << fname << "`" << std::endl;
+    if (is_stdout) {
+        // 直接操作标准输出
+        for (int v = 0; v < 2; v++) {
+            sdsl::rrr_vector<> rrr_bit_vector(zeros_only_bit_vector[v]);
+            rrr_bit_vector.serialize(std::cout);
+            sdsl::util::clear(rrr_bit_vector);
         }
-        exit(1);
-    }
-    sdsl::rrr_vector<> rrr_bit_vector[5];
+        for (int v = 0; v < 2; v++) {
+            sdsl::rrr_vector<> rrr_bit_vector(copy_bit_vector[v]);
+            rrr_bit_vector.serialize(std::cout);
+            sdsl::util::clear(rrr_bit_vector);
+        }
+    } else {
+        // 使用文件流进行操作
+        sdsl::osfstream out(fname, std::ios::binary | std::ios::app);
+        if (!out) {
+            if (sdsl::util::verbose) {
+                std::cerr << "ERROR: store_to_file not successful for: `" << fname << "`" << std::endl;
+            }
+            exit(1);
+        }
+        sdsl::rrr_vector<> rrr_bit_vector[5];
+        for (int v = 0; v < 2; v++) {
+            sdsl::rrr_vector<> rrr_bit_vector(zeros_only_bit_vector[v]);
+            rrr_bit_vector.serialize(out);
+            sdsl::util::clear(rrr_bit_vector);
+        }
+        for (int v = 0; v < 2; v++) {
+            rrr_bit_vector[v] = sdsl::rrr_vector<>(copy_bit_vector[v]);
+            rrr_bit_vector[v].serialize(out);
+            sdsl::util::clear(rrr_bit_vector[v]);
+        }
 
-    for (int v = 0; v < 2; v++)
-    {
-        rrr_bit_vector[v] = sdsl::rrr_vector<>(zeros_only_bit_vector[v]);
-        rrr_bit_vector[v].serialize(out);
-        sdsl::util::clear(rrr_bit_vector[v]);
-    }
-    for (int v = 0; v < 2; v++)
-    {
-        rrr_bit_vector[v + 2] = sdsl::rrr_vector<>(copy_bit_vector[v]);
-        rrr_bit_vector[v + 2].serialize(out);
-        sdsl::util::clear(rrr_bit_vector[v + 2]);
+        out.close();
     }
 
-    out.close();
-
-    if (sdsl::util::verbose)
-    {
-    std::cerr << "INFO: store_to_file: `" << fname << "`" << std::endl;
+    if (sdsl::util::verbose) {
+        std::cerr << "INFO: store_to_file: `" << fname << "`" << std::endl;
     }
+    // sdsl::osfstream out(fname, std::ios::binary | std::ios::app);
+    // if (!out)
+    // {
+    //     if (sdsl::util::verbose)
+    //     {
+    //     std::cerr << "ERROR: store_to_file not successful for: `" << fname << "`" << std::endl;
+    //     }
+    //     exit(1);
+    // }
+    // sdsl::rrr_vector<> rrr_bit_vector[5];
+    
+    // for (int v = 0; v < 2; v++)
+    // {
+    //     rrr_bit_vector[v] = sdsl::rrr_vector<>(zeros_only_bit_vector[v]);
+    //     rrr_bit_vector[v].serialize(out);
+    //     sdsl::util::clear(rrr_bit_vector[v]);
+    // }
+    // for (int v = 0; v < 2; v++)
+    // {
+    //     rrr_bit_vector[v + 2] = sdsl::rrr_vector<>(copy_bit_vector[v]);
+    //     rrr_bit_vector[v + 2].serialize(out);
+    //     sdsl::util::clear(rrr_bit_vector[v + 2]);
+    // }
+
+    // out.close();
+    
+    // if (sdsl::util::verbose)
+    // {
+    // std::cerr << "INFO: store_to_file: `" << fname << "`" << std::endl;
+    // }
 
     
-    std::cout << "genotype compress file (" << params.out_file_name + ".gti"
-              << ") created." << std::endl;    
+    // std::cerr << "genotype compress file (" << params.out_file_name + ".gsc"<< ") created." << std::endl;    
 
 
     return 0;
@@ -206,55 +274,89 @@ bool Compressor::writeCompressFlie()
 // *******************************************************************************************************************
 bool Compressor::OpenForWriting(const string &out_file_name)
 {
-    fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
-    snprintf(fname, strlen(out_file_name.c_str()) + 5, "%s.gti", out_file_name.c_str());
-    comp = fopen(fname, "wb");
-    if (!comp)
-    {
+    if(out_file_name != "-"){
+        fname = out_file_name;
+        // fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
+        // snprintf(fname, strlen(out_file_name.c_str()) + 5, "%s.gsc", out_file_name.c_str());
+        comp = fopen(fname.c_str(), "wb");
+        if (!comp)
+        {
 
-        std::cerr << "ERROR: storing archive not successful for: `" << fname << "`" << std::endl;
+            std::cerr << "ERROR: storing archive not successful for: `" << fname << "`" << std::endl;
+            exit(1);
+        }
+    }else {
+        
+        comp = stdout;
+        is_stdout = true;
+        
+    }
+    if (setvbuf(comp, nullptr, _IOFBF, 64 << 20) != 0) {
+        std::cerr << "ERROR: Buffer setup failed for: `" << fname << "`" << std::endl;
+        // if (fname != nullptr) {
+        //     free(fname);
+        // }
         exit(1);
     }
+
+    // 写入文件
+    mode_type = false;
+
+    fwrite(&mode_type, sizeof(mode_type), 1, comp);
     
-    setvbuf(comp, nullptr, _IOFBF, 64 << 20);
+    other_fields_offset = ftell(comp) + sizeof(uint64_t);
+    fwrite(&other_fields_offset, sizeof(other_fields_offset), 1, comp);
+
     sdsl_offset = ftell(comp) + sizeof(uint64_t);
     
-    fwrite(&sdsl_offset, sizeof(sdsl_offset), 1, comp);
+    if (fwrite(&sdsl_offset, sizeof(sdsl_offset), 1, comp) != 1) {
+        std::cerr << "ERROR: Write operation failed for: `" << fname << "`" << std::endl;
+    }
+
+    
+    // setvbuf(comp, nullptr, _IOFBF, 64 << 20);
+    // sdsl_offset = ftell(comp) + sizeof(uint64_t);
+    
+    // fwrite(&sdsl_offset, sizeof(sdsl_offset), 1, comp);
 
     int id = (int) chunks_streams.size();
                                                 
 	chunks_streams[id] = chunk_stream(0,0);
 
-    if (file_handle2)
-		delete file_handle2;
-    if(params.compress_mode == compress_mode_t::lossless_mode){
-        
-	    file_handle2 = new File_Handle_2(false);
-        if (!file_handle2->Open(out_file_name))
-	    {
-		    cerr << "Cannot open " << out_file_name << "\n";
-		    return false;
-	    }
-    }
+    
     return true;
 }
 //*******************************************************************************************************************
 bool Compressor::OpenTempFile(const string &out_file_name)
 {
-    fname1 = (char *)malloc(strlen(out_file_name.c_str()) + 5);
+    temp_file1_fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
 
-    snprintf(fname1, strlen(out_file_name.c_str()) + 5, "%s.temp", out_file_name.c_str());
+    snprintf(temp_file1_fname, strlen(out_file_name.c_str()) + 5, "%s.temp", out_file_name.c_str());
 
-    temp_file = fopen(fname1, "wb");
+    temp_file = fopen(temp_file1_fname, "wb");
     if (!temp_file)
     {
 
-        std::cerr << "ERROR: storing archive not successful for: `" << fname1 << "`" << std::endl;
+        std::cerr << "ERROR: storing archive not successful for: `" << temp_file1_fname << "`" << std::endl;
         exit(1);
     }
     
     setvbuf(temp_file, nullptr, _IOFBF, 64 << 20);
 
+
+    if(params.compress_mode == compress_mode_t::lossless_mode){
+        if (file_handle2)
+		    delete file_handle2;
+	    file_handle2 = new File_Handle_2(false);
+
+        temp_file2_fname = out_file_name + ".com_tmp_gsc";
+
+        if (!file_handle2->Open(temp_file2_fname))
+	    {
+		    cerr << "Cannot open " << temp_file2_fname << "\n";
+		    return false;
+	    }
+    }
     return true;
 }
 // *******************************************************************************************************************
@@ -287,12 +389,12 @@ bool Compressor::CompressProcess()
     
     uint32_t no_samples = compression_reader->GetSamples(v_samples);
     // for(int i =0;i<v_samples.size();i++)
-    //     cout<<v_samples[i]<<endl;
-    cout << "no_samples:" << no_samples << endl;
+    //     std::cerr<<v_samples[i]<<endl;
+    std::cerr << "no_samples:" << no_samples << endl;
 
     if (!no_samples)
     {
-        cout << "The number of genotype samples is zero and cannot be compressed!\n";
+        std::cerr << "The number of genotype samples is zero and cannot be compressed!\n";
         return false;
     }
     
@@ -302,7 +404,7 @@ bool Compressor::CompressProcess()
 
     compression_reader->setNoVecBlock(params);
 
-    cout<<"no_gt_threads:"<<params.no_gt_threads<<endl;
+    std::cerr<<"no_gt_threads:"<<params.no_gt_threads<<endl;
     GtBlockQueue inGtBlockQueue(max((int)(params.no_blocks*params.no_gt_threads),8));
 
     // VarBlockQueue<fixed_fixed_field_block> inVarBlockQueue(max((int)params.no_threads * 2, 8));
@@ -346,7 +448,7 @@ bool Compressor::CompressProcess()
             }));
         }
     }    
-    block_size = no_samples * params.ploidy*2;
+    block_size = no_samples * params.ploidy * 2;
     
     unique_ptr<thread> compress_thread(new thread([&] {
         fixed_field_block fixed_field_block_process;
@@ -361,8 +463,8 @@ bool Compressor::CompressProcess()
 
         }
 
-
     }));
+
     // create multiple threads to handle individual blocks
     block_process_thread.reserve(params.no_gt_threads);
     string prev_chrom = "";
@@ -386,14 +488,15 @@ bool Compressor::CompressProcess()
                                     
             while (true)
             {
-                if (!inGtBlockQueue.Pop(block_id, data, num_rows,v_vcf_data_io)){
+                if (!inGtBlockQueue.Pop(block_id, data, num_rows, v_vcf_data_io)){
                     break;
                 }
 
                 vector<bool> zeros_only(num_rows, false);
                 vector<bool> copies(num_rows, false);                           
                 block_process.SetCurBlock(num_rows, data);
-                //Gets the sparse encoding for each block                  
+                //Gets the sparse encoding for each block        
+                          
                 if (num_rows){    
                     // if(num_rows == block_size)  
                         block_process.ProcessSquareBlock(perm, zeros_only, copies, origin_of_copy,samples_indexes,true);
@@ -401,7 +504,8 @@ bool Compressor::CompressProcess()
                     //     block_process.ProcessLastBlock(zeros_only, copies, origin_of_copy,samples_indexes);
 
                     if(num_rows == block_size)
-                        block_process.ProcessVariant(perm,v_vcf_data_io);
+
+                        block_process.ProcessVariant(perm , v_vcf_data_io);
 
                 }
                 
@@ -414,10 +518,9 @@ bool Compressor::CompressProcess()
                     //     prev_chrom = v_vcf_data_io[0].chrom;
                     // if(num_rows != block_size)                    
                     //     block_process.ProcessLastPerm(perm,vint_last_perm); 
-                    if(num_rows % block_size){
-                        vint_last_perm.emplace(chunk_id,vint_code::EncodeArray(perm));
-                    }
 
+                   
+                    
                     if(prev_chrom != v_vcf_data_io[0].chrom){
 
                         prev_chrom = v_vcf_data_io[0].chrom;
@@ -434,6 +537,7 @@ bool Compressor::CompressProcess()
                             fixed_field_block_io.Clear();
                         }
                         if(num_rows){
+
                             cur_chunk_actual_pos += (uint32_t)v_vcf_data_io.size();
                             block_process.addSortFieldBlock(fixed_field_block_io,all_zeros,all_copies,comp_pos_copy,zeros_only, copies, origin_of_copy,samples_indexes,v_vcf_data_io,prev_pos);
                             no_curr_chrom_block++;
@@ -455,6 +559,7 @@ bool Compressor::CompressProcess()
                             
                     }
                     else{
+
                         cur_chunk_actual_pos += (uint32_t)v_vcf_data_io.size();
                         block_process.addSortFieldBlock(fixed_field_block_io,all_zeros,all_copies,comp_pos_copy,zeros_only, copies, origin_of_copy,samples_indexes,v_vcf_data_io,prev_pos);
                         no_curr_chrom_block++;
@@ -470,7 +575,12 @@ bool Compressor::CompressProcess()
                             fixed_field_block_io.Clear();
                         }
 
-                    }                 
+                    }   
+                    if(num_rows % block_size){
+                        
+                        vint_last_perm.emplace(chunk_id,vint_code::EncodeArray(perm));
+                    }
+           
                 }         
                 unlock_gt_block_process();                   
                 
@@ -508,7 +618,7 @@ bool Compressor::CompressProcess()
         append(v_desc, key_gt_id);
 	    for (uint32_t i = 0; i < no_keys; ++i)
 	    {
-            // cout<<"key_id:"<<keys[i].key_id<<":"<<keys[i].actual_field_id<<endl;
+            // std::cerr<<"key_id:"<<keys[i].key_id<<":"<<keys[i].actual_field_id<<endl;
 		    append(v_desc, keys[i].key_id);
             append(v_desc, keys[i].actual_field_id);
 		    append(v_desc, static_cast<uint64_t>(keys[i].keys_type));
@@ -519,7 +629,7 @@ bool Compressor::CompressProcess()
 		bsc.InitCompress(p_bsc_fixed_fields);
 		bsc.Compress(v_desc, v_desc_compressed);
         file_handle2->AddParamsPart(stream_id,v_desc_compressed);
-        // file_handle2->Close();
+        file_handle2->Close();
     }
 
      for(uint32_t i = 0; i < params.no_gt_threads; ++i)
@@ -528,8 +638,8 @@ bool Compressor::CompressProcess()
 
     if(temp_file)
         fclose(temp_file);
-    temp_file = fopen(fname1, "rb");
-    std::cout << "Complete and process the chunking." << std::endl;
+    temp_file = fopen(temp_file1_fname, "rb");
+    std::cerr << "Complete and process the chunking." << std::endl;
 
 
     compressReplicatedRow();
@@ -559,7 +669,7 @@ void Compressor::compressReplicatedRow()
     comp_pos_copy.shrink_to_fit();
     copy_no = comp_pos_copy.size();
     
-    // cout << "no_vec:" << no_vec << endl;
+    // std::cerr << "no_vec:" << no_vec << endl;
     // rank_copy_bit_vector[0] = sdsl::rank_support_v5<>(&copy_bit_vector[0]);
     // rank_copy_bit_vector[1] = sdsl::rank_support_v5<>(&copy_bit_vector[1]);
     // rank_zeros_only_vector[0] = sdsl::rank_support_v5<>(&zeros_only_bit_vector[0]);
@@ -617,7 +727,7 @@ void Compressor::compressReplicatedRow()
 
     for (i = 0; i < copy_no; i++)
     {
-        // cout<<comp_pos_copy[i]<<endl;
+        // std::cerr<<comp_pos_copy[i]<<endl;
         bm_comp_copy_orgl_id.PutBits(comp_pos_copy[i], (int32_t)used_bits_cp);
     }
     bm_comp_copy_orgl_id.FlushPartialWordBuffer();
@@ -817,16 +927,16 @@ void Compressor::Encoder(vector<uint8_t>& v_data, vector<uint8_t>& v_tmp)
     v_tmp.shrink_to_fit();
     // for (size_t i = 0; i < v_data.size(); i++)
     // {
-    //     cout<<(int)v_data[i]<<" ";
+    //     std::cerr<<(int)v_data[i]<<" ";
     // }
-    // cout<<endl;
-    // cout<<endl;
+    // std::cerr<<endl;
+    // std::cerr<<endl;
     // for(size_t i = 0; i < v_tmp.size(); i++)
     // {
-    //     cout<<(int)v_tmp[i]<<" ";
+    //     std::cerr<<(int)v_tmp[i]<<" ";
     // }
-    // cout<<endl;
-    // cout<<endl;
+    // std::cerr<<endl;
+    // std::cerr<<endl;
 }
 //compressor meta data
 // *******************************************************************************************************************************************
@@ -850,7 +960,7 @@ bool Compressor::compress_meta(vector<string> v_samples,const string& v_header)
 		bsc.Compress(get<0>(data), get<1>(data));
         
 		// lzma2::lzma2_compress(get<0>(data), get<1>(data), get<2>(data), 10);
-		// cout << get<2>(data) << " size: " << get<1>(data).size() << endl;
+		// std::cerr << get<2>(data) << " size: " << get<1>(data).size() << endl;
 
 		// fh.WriteUInt(get<1>(data).size(), 4, f);
 		// fh.Write(get<1>(data).data(), get<1>(data).size(), f);
@@ -927,7 +1037,7 @@ bool Compressor::compressFixedFields(fixed_field_block &fixed_field_block_io){
         CBSCWrapper cbsc;
         cbsc.InitCompress(p_bsc_fixed_fields);
         cbsc.Compress(get<0>(data), get<1>(data));   
-        // cout<<get<0>(data).size()<<":"<<get<1>(data).size()<<endl;      
+        // std::cerr<<get<0>(data).size()<<":"<<get<1>(data).size()<<endl;      
     }
     if(fixed_field_block_io.gt_block.size() < (2<<20)){
         CBSCWrapper cbsc;
@@ -935,9 +1045,9 @@ bool Compressor::compressFixedFields(fixed_field_block &fixed_field_block_io){
         cbsc.Compress(fixed_field_block_io.gt_block, fixed_field_block_compress.gt_block);  
         fixed_field_block_compress.gt_block.emplace_back(0);                  
     }else{
-                    // cout<<"zstd"<<endl;
+                    // std::cerr<<"zstd"<<endl;
         zstd::zstd_compress(fixed_field_block_io.gt_block,fixed_field_block_compress.gt_block);
-        // cout<<fixed_field_block_compress.no_variants<<":"<<fixed_field_block_io.gt_block.size()<<":"<<fixed_field_block_compress.gt_block.size()<<endl;
+        // std::cerr<<fixed_field_block_compress.no_variants<<":"<<fixed_field_block_io.gt_block.size()<<":"<<fixed_field_block_compress.gt_block.size()<<endl;
         fixed_field_block_compress.gt_block.emplace_back(1);
     }
     writeTempFlie(fixed_field_block_compress);

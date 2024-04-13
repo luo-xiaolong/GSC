@@ -21,7 +21,7 @@ public:
     }
     uint32_t no_samples;
     
-    int loadSamples(vector<string>& v_samples);   //2022年8月3日添加这行代码中的vector<string>& v_samples
+    int loadSamples(vector<string>& v_samples);  
     uint32_t getWhich(std::string nm);
 
     uint32_t * setSamples(const std::string  & samples, string &str);

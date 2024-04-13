@@ -99,78 +99,148 @@ using namespace std;
 //     mutex m_mutex;
 //     condition_variable cv_pop, cv_push;
 // };
-
 class GtBlockQueue
-{  
+{
 public:
-    GtBlockQueue() : flag(false), capacity(0)
-    {}
-    
-    GtBlockQueue(size_t _capacity) : flag(false), capacity(_capacity)
-    {}
-    
-    ~GtBlockQueue()
-    {}
+    explicit GtBlockQueue(size_t _capacity) 
+        : flag(false), capacity(_capacity) {}
 
-    void Push(int id_block, unsigned char *data, size_t num_rows,vector<variant_desc_t> &v_vcf_data_compress)
+    void Push(int id_block, unsigned char *data, size_t num_rows, std::vector<variant_desc_t> &v_vcf_data_compress)
     {
-        unique_lock<std::mutex> lck(m_mutex);
-        
-        cv_push.wait(lck, [this] {return g_blocks.size() < capacity;});
+        std::unique_ptr<genotype_block_t> block(new genotype_block_t(id_block, data, num_rows, std::move(v_vcf_data_compress)));
 
-        g_blocks.push_back(genotype_block_t(id_block, data, num_rows,std::move(v_vcf_data_compress)));
+        {
+            std::unique_lock<std::mutex> lck(m_mutex);
+            cv_push.wait(lck, [this] { return g_blocks.size() < capacity; });
+            g_blocks.push_back(std::move(block));
+        }
 
-        cv_pop.notify_all();
+        cv_pop.notify_one();
     }
-    
-    bool Pop(int &id_block, unsigned char *&data, size_t &num_rows,vector<variant_desc_t> &v_vcf_data_compress)
+
+    bool Pop(int &id_block, unsigned char *&data, size_t &num_rows, std::vector<variant_desc_t> &v_vcf_data_compress)
     {
-        unique_lock<std::mutex> lck(m_mutex);
-        
-        cv_pop.wait(lck, [this] {return !g_blocks.empty() || flag; });
-        // cout<<"Pop"<<endl;
-        if (flag && g_blocks.empty())
-            return false;
-        auto block = move(g_blocks.front());
-        g_blocks.pop_front();
-        id_block = block.block_id;
-        data = block.data;
-        num_rows   = block.num_rows;
-        v_vcf_data_compress = std::move(block.v_vcf_data_compress);
-        
-        cv_push.notify_all();
-        
+        std::unique_ptr<genotype_block_t> block;
+
+        {
+            std::unique_lock<std::mutex> lck(m_mutex);
+            cv_pop.wait(lck, [this] { return !g_blocks.empty() || flag; });
+
+            if (flag && g_blocks.empty())
+                return false;
+
+            block = std::move(g_blocks.front());
+            g_blocks.pop_front();
+        }
+
+        cv_push.notify_one();
+
+        id_block = block->block_id;
+        data = block->data;
+        num_rows = block->num_rows;
+        v_vcf_data_compress = std::move(block->v_vcf_data_compress);
+
         return true;
     }
-    
+
     void Complete()
     {
-        unique_lock<std::mutex> lck(m_mutex);
-        
-        flag = true;
-        
+        {
+            std::unique_lock<std::mutex> lck(m_mutex);
+            flag = true;
+        }
         cv_pop.notify_all();
     }
+
 private:
-    typedef struct genotype_block
+    struct genotype_block_t
     {
         int block_id;
         unsigned char *data;
         size_t num_rows;
-        vector<variant_desc_t> v_vcf_data_compress;
-        genotype_block(int _block_id, unsigned char* _data, size_t _num_rows,vector<variant_desc_t> &&_v_vcf_data_compress):
-        block_id(_block_id), data(_data), num_rows(_num_rows), v_vcf_data_compress(move(_v_vcf_data_compress))
-        {}
-    } genotype_block_t;
-    
-    list<genotype_block_t> g_blocks;
-    
+        std::vector<variant_desc_t> v_vcf_data_compress;
+
+        genotype_block_t(int _block_id, unsigned char *_data, size_t _num_rows, std::vector<variant_desc_t> &&_v_vcf_data_compress)
+            : block_id(_block_id), data(_data), num_rows(_num_rows), v_vcf_data_compress(std::move(_v_vcf_data_compress)) {}
+    };
+
+    std::deque<std::unique_ptr<genotype_block_t>> g_blocks;
     bool flag;
     size_t capacity;
-    
-    mutex m_mutex;
-    condition_variable cv_pop, cv_push;
+    std::mutex m_mutex;
+    std::condition_variable cv_pop, cv_push;
 };
+// class GtBlockQueue
+// {  
+// public:
+//     GtBlockQueue() : flag(false), capacity(0)
+//     {}
+    
+//     GtBlockQueue(size_t _capacity) : flag(false), capacity(_capacity)
+//     {}
+    
+//     ~GtBlockQueue()
+//     {}
+
+//     void Push(int id_block, unsigned char *data, size_t num_rows,vector<variant_desc_t> &v_vcf_data_compress)
+//     {
+//         unique_lock<std::mutex> lck(m_mutex);
+        
+//         cv_push.wait(lck, [this] {return g_blocks.size() < capacity;});
+
+//         g_blocks.push_back(genotype_block_t(id_block, data, num_rows,std::move(v_vcf_data_compress)));
+        
+//         cv_pop.notify_all();
+//     }
+    
+//     bool Pop(int &id_block, unsigned char *&data, size_t &num_rows,vector<variant_desc_t> &v_vcf_data_compress)
+//     {
+//         unique_lock<std::mutex> lck(m_mutex);
+        
+//         cv_pop.wait(lck, [this] {return !g_blocks.empty() || flag; });
+        
+//         if (flag && g_blocks.empty())
+//             return false;
+//         auto block = move(g_blocks.front());
+//         g_blocks.pop_front();
+//         id_block = block.block_id;
+//         data = block.data;
+//         num_rows   = block.num_rows;
+//         v_vcf_data_compress = std::move(block.v_vcf_data_compress);
+        
+//         cv_push.notify_all();
+        
+//         return true;
+//     }
+    
+//     void Complete()
+//     {
+//         unique_lock<std::mutex> lck(m_mutex);
+        
+//         flag = true;
+        
+//         cv_pop.notify_all();
+//     }
+// private:
+//     typedef struct genotype_block
+//     {
+//         int block_id;
+//         unsigned char *data;
+//         size_t num_rows;
+//         vector<variant_desc_t> v_vcf_data_compress;
+//         genotype_block(int _block_id, unsigned char* _data, size_t _num_rows,vector<variant_desc_t> &&_v_vcf_data_compress):
+//         block_id(_block_id), data(_data), num_rows(_num_rows), v_vcf_data_compress(move(_v_vcf_data_compress))
+//         {}
+//     } genotype_block_t;
+    
+//     list<genotype_block_t> g_blocks;
+    
+//     bool flag;
+//     size_t capacity;
+    
+//     mutex m_mutex;
+//     condition_variable cv_pop, cv_push;
+// };
 // class GtBlockQueue
 // {  
 // public:

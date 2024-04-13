@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+// #include <filesystem>
 #include <iostream>
 #include <string>
 #include <sdsl/bit_vectors.hpp>
@@ -72,6 +73,9 @@ class DecompressionReader {
 	DecompressPartQueue<uint32_t> *decomp_part_queue; 
 	vector<thread> part_decompress_thread;
 	File_Handle_2 * file_handle2 = nullptr;
+	string temp_file2_fname ;
+	string fname;
+
 	uint32_t no_keys;
 	vector<key_desc> keys;
 	int key_gt_id;

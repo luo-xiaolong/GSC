@@ -63,7 +63,7 @@ struct GSC_Params
     bool out_AC_AN;
     bool out_genotypes;
     bool out_samples_name;
-    bool out_file_flag;
+    // bool out_file_flag;
     // bool out_ohter_fields;
     bool split_flag;
     bool merge_file_flag;
@@ -88,8 +88,8 @@ struct GSC_Params
         vec_len = 0;
         n_samples = 0;
         no_blocks = 0;
-        in_file_name = "";
-        out_file_name = "";
+        in_file_name = "-";
+        out_file_name = "-";
         merge_file_flag = false;
         out_samples_file_name = "";
         range = "";
@@ -100,7 +100,7 @@ struct GSC_Params
         out_samples_name = false;
         out_AC_AN = false;
         out_genotypes = true;
-        out_file_flag = false;
+        // out_file_flag = false;
         // out_ohter_fields = false;
         split_flag = false;
         out_header_flag = true;

@@ -38,7 +38,27 @@ void DecompressionReader::out_perm(vector<uint32_t> &perm, vector<variant_desc_t
 bool DecompressionReader::OpenReading(const string &in_file_name){
 	
 	CBSCWrapper::InitLibrary(p_bsc_features);
-	string fname = in_file_name + ".gti";
+	fname = in_file_name;
+	if(in_file_name == "-"){
+		std::istream* in_stream = &std::cin;
+
+		fname = in_file_name + ".decom_tmp_gsc";
+		cout<< fname<<endl;
+		{
+			std::ofstream temp_file(fname, std::ios::binary | std::ios::trunc);
+			if (!temp_file) {
+				std::cerr << "Failed to create temporary file: " << fname << std::endl;
+				return 1;
+			}
+			const std::streamsize bufferSize = 1024 * 1024;
+			char buffer[bufferSize]; // 使用std::vector作为缓冲区
+ 			while (in_stream->read(buffer, bufferSize) || in_stream->gcount() > 0) {
+        		temp_file.write(buffer, in_stream->gcount());
+    		}
+			// 关闭临时文件
+			temp_file.close();
+		}
+	}
 	// sdsl vectors
     sdsl::isfstream in(fname, std::ios::binary | std::ios::in);
     if (!in)
@@ -49,16 +69,50 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
         }
         exit(1);
     }
+
+	uint64_t other_fields_offset;
 	uint64_t sdsl_offset;
+	bool mode_type;
+	in.read((char *)&mode_type, sizeof(bool));
+	in.read((char *)&other_fields_offset, sizeof(uint64_t));
 	in.read((char *)&sdsl_offset, sizeof(uint64_t));
-	
+	if(mode_type){
+		temp_file2_fname = fname + ".tmp";
+		in.seekg(other_fields_offset, std::ios::beg);
+		std::ofstream out(temp_file2_fname, std::ios::binary | std::ios::trunc);
+		if (!out) {
+			std::cerr << "Cannot open destination file: " << temp_file2_fname << std::endl;
+			return 1;
+		}
+		const std::streamsize bufferSize = 1024 * 1024;
+		char buffer[bufferSize];
+    	std::streamsize bytesToRead = sdsl_offset - other_fields_offset;
+
+
+
+
+		while (bytesToRead > 0 && in) {
+			std::streamsize readSize = std::min(bytesToRead, bufferSize);
+			in.read(buffer, readSize);
+			std::streamsize bytesRead = in.gcount();
+			out.write(buffer, bytesRead);
+			bytesToRead -= bytesRead;
+		}
+		if (in.bad()) {
+			std::cerr << "Error reading source file." << std::endl;
+			return 1;
+		}
+
+		out.close();
+	}
+	std::cerr<<mode_type << " "<<other_fields_offset <<" "<<sdsl_offset<<endl;
 	in.seekg(sdsl_offset, std::ios::beg);
 
     rrr_zeros_bit_vector[0].load(in);
     rrr_zeros_bit_vector[1].load(in);
     rrr_copy_bit_vector[0].load(in);
     rrr_copy_bit_vector[1].load(in);
-	in.seekg(sizeof(sdsl_offset), std::ios::beg);
+	in.seekg(sizeof(mode_type) + sizeof(other_fields_offset) + sizeof(sdsl_offset), std::ios::beg);  // 17 = sizeof()
     uint64_t FileStartPosition = in.tellg();
 	
     in.close();
@@ -69,17 +123,18 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 
     // rest of archive
     buf_pos = 0;
-    uint64_t arch_size = 0;
+    
 #ifndef MMAP
     {
+		uint64_t arch_size = 0;
         FILE *comp = fopen(fname.c_str(), "rb");
 
         if (!comp)
         {
-            cout << "Input file (" << fname << ")error\n";
+            std::cerr << "Input file (" << fname << ")error\n";
             exit(1);
         }
-        arch_size = sdsl_offset - FileStartPosition;
+        arch_size = other_fields_offset - FileStartPosition;
         fseek(comp, FileStartPosition, SEEK_SET);
 
         buf = new uchar[arch_size];
@@ -87,8 +142,8 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 
         fclose(comp);
 
-        cout << FileStartPosition << endl;
-        cout << arch_size << endl;
+        std::cerr << FileStartPosition << endl;
+        std::cerr << arch_size << endl;
     }
 #else // if BOOST
     /*    const boost::interprocess::mode_t mode = boost::interprocess::read_only;
@@ -103,13 +158,13 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
         exit(1);
     }
     buf = (uint8_t *)fm->data() + FileStartPosition;
-    arch_size = sdsl_offset - FileStartPosition;
+    // arch_size = other_fields_offset - FileStartPosition;
 
 #endif
 	uint32_t chunks_streams_size;
 	memcpy(&chunks_streams_size, buf + buf_pos, sizeof(uint32_t));
 	buf_pos = buf_pos + sizeof(uint32_t);
-	// cout<<"chunks_streams_size: "<<chunks_streams_size<<endl;
+	// std::cerr<<"chunks_streams_size: "<<chunks_streams_size<<endl;
 	for (uint32_t i = 0; i < chunks_streams_size; i++){
 		size_t offset;
 		uint32_t cur_chunk_actual_pos;
@@ -154,25 +209,25 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 	uint32_t chunks_min_pos_size;
 	memcpy(&chunks_min_pos_size, buf + buf_pos, sizeof(uint32_t));
 	buf_pos = buf_pos + sizeof(uint32_t);
-	// cout<<"chunks_min_pos_size: "<<chunks_min_pos_size<<endl;
+	// std::cerr<<"chunks_min_pos_size: "<<chunks_min_pos_size<<endl;
 	chunks_min_pos.resize(chunks_min_pos_size);
 	memcpy(&chunks_min_pos[0], buf + buf_pos, chunks_min_pos_size * sizeof(int64_t));
 	buf_pos = buf_pos + chunks_min_pos_size * sizeof(int64_t);
 	// for(uint32_t i = 0; i < chunks_min_pos_size; i++){
-	// 	cout<<chunks_min_pos[i]<<endl;
+	// 	std::cerr<<chunks_min_pos[i]<<endl;
 	// }
 	uint32_t where_chrom_size;	
 	memcpy(&where_chrom_size, buf + buf_pos, sizeof(uint32_t));
 	buf_pos = buf_pos + sizeof(uint32_t);
 
 	d_where_chrom.resize(where_chrom_size);
-	// cout<<where_chrom_size<<endl;
+	// std::cerr<<where_chrom_size<<endl;
 	for (size_t i = 0; i < where_chrom_size; ++i)
 	{
     	size_t chrom_size;
 		memcpy(&chrom_size, buf + buf_pos, sizeof(size_t));
 		buf_pos = buf_pos + sizeof(size_t);
-		// cout<<chrom_size<<endl;
+		// std::cerr<<chrom_size<<endl;
     	d_where_chrom[i].first.resize(chrom_size);
     	memcpy(&d_where_chrom[i].first[0], buf + buf_pos, chrom_size*sizeof(char));
 		buf_pos = buf_pos + chrom_size*sizeof(char);
@@ -184,7 +239,7 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 	uint32_t vint_last_perm_size;
 	memcpy(&vint_last_perm_size, buf + buf_pos, sizeof(uint32_t));
 	buf_pos = buf_pos + sizeof(uint32_t);
-	// cout<<"vint_last_perm_size: "<<vint_last_perm_size<<endl;
+	// std::cerr<<"vint_last_perm_size: "<<vint_last_perm_size<<endl;
 	for (uint32_t i = 0; i < vint_last_perm_size; ++i)
     {
 		uint32_t data_size;
@@ -194,7 +249,7 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
         buf_pos = buf_pos + sizeof(uint32_t);
         memcpy(&data_size, buf + buf_pos, sizeof(uint32_t));
 		buf_pos = buf_pos + sizeof(uint32_t);
-		// cout<<first<<":"<<data_size<<endl;
+		// std::cerr<<first<<":"<<data_size<<endl;
 		vector<uint8_t> data(data_size);
 		
         memcpy(&data[0], buf + buf_pos, data_size*sizeof(uint8_t));
@@ -202,7 +257,7 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 
 		vint_last_perm.emplace(first,data);
     }
-	// cout<<"vint_last_perm_size: "<<vint_last_perm_size<<endl;
+	// std::cerr<<"vint_last_perm_size: "<<vint_last_perm_size<<endl;
 	uint32_t  comp_size;
 	memcpy(&comp_size, buf + buf_pos, sizeof(uint32_t));
 	buf_pos = buf_pos + sizeof(uint32_t);
@@ -234,9 +289,12 @@ bool DecompressionReader::OpenReadingPart2(const string &in_file_name){
 	if (file_handle2)
 		delete file_handle2;
 	file_handle2 = new File_Handle_2(true);
-    if (!file_handle2->Open(in_file_name))
+	
+    if (!file_handle2->Open(temp_file2_fname))
 	{
-		cerr << "Cannot open " << in_file_name << "\n";
+		cerr << "Can't open the temporary file:" << temp_file2_fname << "\n";
+		std::cerr << "The .gsc file is generated through lossy compression mode "
+                 "and can only be decompressed using a lossy mode." << std::endl;
 		return false;
 	}
 	int stream_id = file_handle2->GetStreamId("part2_params");
@@ -272,7 +330,7 @@ bool DecompressionReader::OpenReadingPart2(const string &in_file_name){
 		read(v_desc, pos_part2_params, temp);
 		keys[i].keys_type = (key_type_t)temp;
 		read(v_desc, pos_part2_params, keys[i].type);
-		// cout<<keys[i].key_id<<" "<<keys[i].actual_field_id<<endl;
+		// std::cerr<<keys[i].key_id<<" "<<keys[i].actual_field_id<<endl;
 	}
 
 	InitDecompressParams();
@@ -331,9 +389,14 @@ bool DecompressionReader::OpenReadingPart2(const string &in_file_name){
 void DecompressionReader::close(){
 	decomp_part_queue->Complete();
 
-		for (uint32_t i = 0; i < no_threads; ++i)
-			part_decompress_thread[i].join();
+	for (uint32_t i = 0; i < no_threads; ++i)
+		part_decompress_thread[i].join();
 			
+	if (remove(temp_file2_fname.c_str()) != 0) {
+		perror("Error deleting temp2 file");
+
+	}
+
 		// file_handle2->Close();
 }
 //**********************************************************************************************************************
@@ -370,17 +433,17 @@ bool DecompressionReader::decompress_other_fileds(SPackage* pck)
 			
 			pck->v_data.resize(v_tmp.size());
 			Decoder(v_tmp, pck->v_data);
-			// cout<<pck->key_id<<":"<<v_compressed.size()<<":"<<v_tmp.size()<<":"<<pck->v_data.size()<<endl;
-			// // cout<<pck->v_data.size()<<endl;
+			// std::cerr<<pck->key_id<<":"<<v_compressed.size()<<":"<<v_tmp.size()<<":"<<pck->v_data.size()<<endl;
+			// // std::cerr<<pck->v_data.size()<<endl;
 		}
 		else{
 			cbsc->Decompress(v_compressed, pck->v_data);
-			// cout<<pck->key_id<<":"<<v_compressed.size()<<":"<<pck->v_data.size()<<endl;
+			// std::cerr<<pck->key_id<<":"<<v_compressed.size()<<":"<<pck->v_data.size()<<endl;
 		}
 	}
 	else{
 		pck->v_data.clear();
-		// cout<<pck->key_id<<":"<<v_compressed.size()<<":"<<pck->v_data.size()<<endl;
+		// std::cerr<<pck->key_id<<":"<<v_compressed.size()<<":"<<pck->v_data.size()<<endl;
 	}
 	
 	return true;
@@ -511,7 +574,7 @@ void DecompressionReader::decompress_meta(vector<string> &v_samples, string &hea
 		v_samples.emplace_back(sample);
         
 	}
-	cout<<"Decompress header and samples done!"<<endl;
+	std::cerr<<"Decompress header and samples done!"<<endl;
     
 }
 bool DecompressionReader::setStartChunk(uint32_t start_chunk_id){
@@ -604,7 +667,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
     // Initialize decoder parameters
     initDecoderParams();
     no_variants = fixed_field_block_compress.no_variants;
-
+	
     // Other initializations here...
     std::vector<variant_desc_t> v_vcf_fixed_data_io;
     std::vector<variant_desc_t> v_vcf_sort_data_io;
@@ -629,7 +692,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 			CBSCWrapper bsc;
 			bsc.InitDecompress();
 			bsc.Decompress(get<1>(data), get<0>(data));
-			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+			// std::cerr<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
 
 		}
 		uint32_t i_variant;
@@ -659,7 +722,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 			CBSCWrapper bsc;
 			bsc.InitDecompress();
 			bsc.Decompress(get<1>(data), get<0>(data));
-			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+			// std::cerr<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
 
 		}
 		if(fixed_field_block_compress.gt_block.back() == 0)
@@ -672,7 +735,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 		}else{
 			fixed_field_block_compress.gt_block.pop_back();	
 			zstd::zstd_decompress(fixed_field_block_compress.gt_block, fixed_field_block_io.gt_block);
-			// cout<<"fixed_field_block_io:"<<fixed_field_block_io.gt_block.size()<<endl;		
+			// std::cerr<<"fixed_field_block_io:"<<fixed_field_block_io.gt_block.size()<<endl;		
 		}
 		uint32_t i_variant;
 		variant_desc_t desc;
@@ -700,17 +763,11 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 		}
 		if (i_variant % block_size)
 		{
-			auto it = vint_last_perm.find(cur_chunk_id);
-			// cout<<cur_chunk_id<<endl;
-			// cout<<vint_last_perm.size()<<":"<<it->first<<endl;
-			// if(it == vint_last_perm.end())
-			// 	return false;
-			// for (size_t i_p = 0; i_p < perm.size(); i_p++)
-			// {
-			// 	perm[i_p] = i_p;
-			// }
 
+			auto it = vint_last_perm.find(cur_chunk_id);
+			
 			perm = vint_code::DecodeArray(it->second);
+
 			s_perm.emplace_back(perm);
 
 			for (size_t i_p = 0; i_p < i_variant % block_size; i_p++)
@@ -759,7 +816,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 // 	initDecoderParams();
 // 	no_variants =  fixed_field_block_compress.no_variants;
 
-// 	// cout<<"no_variants: "<<no_variants<<endl;
+// 	// std::cerr<<"no_variants: "<<no_variants<<endl;
 // 	vector<variant_desc_t> v_vcf_fixed_data_io;
 // 	vector<variant_desc_t> v_vcf_sort_data_io;
 // 	uint32_t block_size = n_samples * uint32_t(ploidy);
@@ -779,7 +836,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 // 			CBSCWrapper bsc;
 // 			bsc.InitDecompress();
 // 			bsc.Decompress(get<1>(data), get<0>(data));
-// 			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+// 			// std::cerr<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
 
 // 		}
 // 		uint32_t i_variant;
@@ -808,7 +865,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 // 			CBSCWrapper bsc;
 // 			bsc.InitDecompress();
 // 			bsc.Decompress(get<1>(data), get<0>(data));
-// 			// cout<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
+// 			// std::cerr<<get<3>(data)<<":"<<get<1>(data).size()<<":"<<get<0>(data).size()<<endl;
 
 // 		}
 // 		if(fixed_field_block_compress.gt_block.back() == 0)
@@ -821,7 +878,7 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 // 		}else{
 // 			fixed_field_block_compress.gt_block.pop_back();	
 // 			zstd::zstd_decompress(fixed_field_block_compress.gt_block, fixed_field_block_io.gt_block);
-// 			// cout<<"fixed_field_block_io:"<<fixed_field_block_io.gt_block.size()<<endl;		
+// 			// std::cerr<<"fixed_field_block_io:"<<fixed_field_block_io.gt_block.size()<<endl;		
 // 		}
 // 		uint32_t i_variant;
 // 		variant_desc_t desc;
@@ -850,8 +907,8 @@ bool DecompressionReader::Decoder(std::vector<block_t> &v_blocks, std::vector<st
 // 		if (i_variant % block_size)
 // 		{
 // 			auto it = vint_last_perm.find(cur_chunk_id);
-// 			// cout<<cur_chunk_id<<endl;
-// 			// cout<<vint_last_perm.size()<<":"<<it->first<<endl;
+// 			// std::cerr<<cur_chunk_id<<endl;
+// 			// std::cerr<<vint_last_perm.size()<<":"<<it->first<<endl;
 // 			// if(it == vint_last_perm.end())
 // 			// 	return false;
 // 			// for (size_t i_p = 0; i_p < perm.size(); i_p++)

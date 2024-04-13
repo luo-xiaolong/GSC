@@ -16,7 +16,7 @@ bool CompressionReader::OpenForReading(string & file_name)
             std::ifstream directory_file_name(file_name.substr(1));
             if(!directory_file_name.is_open())
             {
-                std::cout << "Error. Cannot open " << file_name.substr(1)<< " file with samples.\n";
+                std::cerr << "Error. Cannot open " << file_name.substr(1)<< " file with samples.\n";
                 exit(1);
             }
             std::string item;
@@ -25,7 +25,7 @@ bool CompressionReader::OpenForReading(string & file_name)
                 merge_file_names.emplace_back(item);
                 size++;        
             }
-            cout<<"size:"<<size<<endl;
+            std::cerr<<"size:"<<size<<endl;
             directory_file_name.clear();
         }else{   
             char delim = ',';
@@ -50,7 +50,7 @@ bool CompressionReader::OpenForReading(string & file_name)
                 merge_files[i] = hts_open(merge_file_names[i].c_str(), "rb");
             }
             if(!merge_files[i]){
-                std::cout << "could not open " << merge_file_names[i] << " file" << std::endl;
+                std::cerr << "could not open " << merge_file_names[i] << " file" << std::endl;
                 merge_failure_flag = true;
                 return false;
             }
@@ -77,7 +77,7 @@ bool CompressionReader::OpenForReading(string & file_name)
             in_file = hts_open(file_name.c_str(), "rb");
         }
         if(!in_file){
-            std::cout << "could not open " << in_file_name << " file" << std::endl;
+            std::cerr << "could not open " << in_file_name << " file" << std::endl;
             return false;
         }
         hts_set_opt(in_file, HTS_OPT_CACHE_SIZE, 32 << 20);
@@ -85,6 +85,8 @@ bool CompressionReader::OpenForReading(string & file_name)
         if(vcf_hdr)
             bcf_hdr_destroy(vcf_hdr);
         vcf_hdr = bcf_hdr_read(in_file);
+        int thread_count = 4;
+        hts_set_threads(in_file, thread_count);
         vcf_record = bcf_init();
     }
     return true;
@@ -228,7 +230,7 @@ void CompressionReader::InitVarinats(File_Handle_2 *_file_handle2)
         v_o_buf[i].SetMaxSize(max_buffer_size, 0);
     v_buf_ids_size.resize(no_keys, -1);
 	v_buf_ids_data.resize(no_keys, -1);
-    // cout << "no_keys:" << no_keys << endl;
+    // std::cerr << "no_keys:" << no_keys << endl;
     for (uint32_t i = 0; i < no_keys; i++)
     {
         switch (keys[i].keys_type)
@@ -239,7 +241,7 @@ void CompressionReader::InitVarinats(File_Handle_2 *_file_handle2)
             FilterIdToFieldId[keys[i].key_id] = i;
             break;
         case key_type_t::info:
-            // cout << "no_samples:" <<keys[i].key_id << endl;
+            // std::cerr << "no_samples:" <<keys[i].key_id << endl;
             if (keys[i].key_id >= InfoIdToFieldId.size())
                 InfoIdToFieldId.resize(keys[i].key_id + 1, -1);
             InfoIdToFieldId[keys[i].key_id] = i;
@@ -248,7 +250,7 @@ void CompressionReader::InitVarinats(File_Handle_2 *_file_handle2)
             if (keys[i].key_id >= FormatIdToFieldId.size())
                 FormatIdToFieldId.resize(keys[i].key_id + 1, -1);
             FormatIdToFieldId[keys[i].key_id] = i;
-            // cout<<"InfoIdToFieldId:"<<FormatIdToFieldId[keys[i].key_id]<<endl;
+            // std::cerr<<"InfoIdToFieldId:"<<FormatIdToFieldId[keys[i].key_id]<<endl;
             break;
         }
     }
@@ -257,12 +259,12 @@ void CompressionReader::InitVarinats(File_Handle_2 *_file_handle2)
     for (uint32_t i = 0; i < no_keys; i++)
     {
         v_buf_ids_size[i] = file_handle2->RegisterStream("key_" + to_string(i) + "_size");
-        // cout<<v_buf_ids_size[i]<<endl;
+        // std::cerr<<v_buf_ids_size[i]<<endl;
     }
     for (uint32_t i = 0; i < no_keys; i++)
     {
         v_buf_ids_data[i] = file_handle2->RegisterStream("key_" + to_string(i) + "_data");
-        // cout<<v_buf_ids_data[i]<<endl;
+        // std::cerr<<v_buf_ids_data[i]<<endl;
 
     }    
     
@@ -279,7 +281,7 @@ bool CompressionReader::GetFilterInfoFormatKeys(int &no_flt_keys, int &no_info_k
     no_fmt_keys = 0;
 
     key_desc new_key;
-    // cout<<vcf_hdr->nhrec<<endl;
+    // std::cerr<<vcf_hdr->nhrec<<endl;
     for (int i = 0; i < vcf_hdr->nhrec; i++)
     {
 
@@ -316,7 +318,7 @@ bool CompressionReader::GetFilterInfoFormatKeys(int &no_flt_keys, int &no_info_k
                 }
             }
             new_key.actual_field_id = (uint32_t) keys.size();
-            // cout<<"new_key.actual_field_id:"<<new_key.key_id<<":"<<new_key.actual_field_id<<endl;
+            // std::cerr<<"new_key.actual_field_id:"<<new_key.key_id<<":"<<new_key.actual_field_id<<endl;
             keys.emplace_back(new_key);
         }
     }
@@ -410,7 +412,7 @@ bool CompressionReader::GetVariantFromRec(bcf1_t *rec, vector<field_desc> &field
             }
             else
             {
-                cout << "Error getting variant" << endl;
+                std::cerr << "Error getting variant" << endl;
                 return false;
             }
         }
@@ -444,7 +446,7 @@ bool CompressionReader::GetVariantFromRec(bcf1_t *rec, vector<field_desc> &field
                 
                 int bcf_ht_type = bcf_hdr_id2type(vcf_hdr, BCF_HL_FMT, fmt[i].id); // BCF_HT_INT or BCF_HT_REAL or BCF_HT_FLAG or BCF_HT_STR
                 auto vcf_hdr_key = vcf_hdr->id[BCF_DT_ID][fmt[i].id].key;
-                // cout<<vcf_hdr_key<<endl;
+                // std::cerr<<vcf_hdr_key<<endl;
                 if (strcmp(vcf_hdr_key, "GT") == 0)
                 {
                     int *gt_arr = NULL, ngt_arr = 0;
@@ -522,7 +524,7 @@ bool CompressionReader::GetVariantFromRec(bcf1_t *rec, vector<field_desc> &field
     // if(order.size() < no_keys - no_flt_keys || field_order_flag){
     //     field_order_flag =  false;
         for (size_t i = 0; i < field_order.size() - 1; ++i) {
-            // cout<<field_order[i]<<" ";
+            // std::cerr<<field_order[i]<<" ";
             if (field_order_graph[field_order[i]].find(field_order[i+1]) == field_order_graph[field_order[i]].end()) {
                 field_order_graph[field_order[i]].insert(field_order[i+1]);
                 inDegree[field_order[i+1]]++;
@@ -532,7 +534,7 @@ bool CompressionReader::GetVariantFromRec(bcf1_t *rec, vector<field_desc> &field
                 inDegree[field_order[i]] = 0;
             }    
         }
-        // cout<<endl;
+        // std::cerr<<endl;
         // order = topo_sort(field_order_graph,inDegree);
 
     // }
@@ -585,11 +587,11 @@ bool CompressionReader::SetVariantOtherFields(vector<field_desc> &fields)
         
         if (v_o_buf[i].IsFull())
 		{
-			// cout<<"v_buf_ids_size[i]:"<<v_buf_ids_size[i]<<endl;
-			// cout<<"v_buf_ids_size[i]:"<<v_buf_ids_size[i]<<endl;
+			// std::cerr<<"v_buf_ids_size[i]:"<<v_buf_ids_size[i]<<endl;
+			// std::cerr<<"v_buf_ids_size[i]:"<<v_buf_ids_size[i]<<endl;
 			auto part_id = file_handle2->AddPartPrepare(v_buf_ids_size[i]);
 			file_handle2->AddPartPrepare(v_buf_ids_data[i]);
-            // cout<<part_id<<endl;
+            // std::cerr<<part_id<<endl;
 			vector<uint32_t> v_size;
 			vector<uint8_t> v_data;
 			
@@ -629,22 +631,22 @@ bool CompressionReader::ProcessInVCF()
  
         while (bcf_read1(in_file, vcf_hdr, vcf_record) >= 0)
         {
-            // cout<<"no_samples:"<<no_samples<<endl;
+            // std::cerr<<"no_samples:"<<no_samples<<endl;
             variant_desc_t desc;
             if (vcf_record->errcode)
             {
-                std::cout << "Repair VCF file\n";
+                std::cerr << "Repair VCF file\n";
                 exit(9);
             }
             bcf_unpack(vcf_record, BCF_UN_ALL);
             if (vcf_record->d.fmt->n != (int)ploidy)
             {
-                std::cout << "Wrong ploidy (not equal to " << ploidy << ") for record at position " << vcf_record->pos << ".\n";
-                std::cout << "Repair VCF file OR set correct ploidy using -p option\n";
+                std::cerr << "Wrong ploidy (not equal to " << ploidy << ") for record at position " << vcf_record->pos << ".\n";
+                std::cerr << "Repair VCF file OR set correct ploidy using -p option\n";
                 exit(9);
             }
             if (tmpi % 100000 == 0){
-                cout << tmpi << "\r";
+                std::cerr << tmpi << "\r";
                 fflush(stdout);
             }
             if(compress_mode == compress_mode_t::lossless_mode){
@@ -686,7 +688,7 @@ bool CompressionReader::ProcessInVCF()
         delete[] gt_data;
     }
 
-    std::cout << "Read all the variants and gentotypes" << endl;
+    std::cerr << "Read all the variants and gentotypes" << endl;
     // Last pack (may be smaller than block size）
     
         CloseFiles();
@@ -700,7 +702,7 @@ bool CompressionReader::ProcessInVCF()
 
 //         }
 //         else {
-//             cout<<cur_g_data[i]<<" ";
+//             std::cerr<<cur_g_data[i]<<" ";
 //         }
 
 // }
@@ -827,7 +829,7 @@ void CompressionReader::ProcessFixedVariants(bcf1_t *vcf_record, variant_desc_t 
                 // fill_n(gt_data, ncur_g_data, 0);
                 for (int i = 0; i < ncur_g_data; i++)
                 { // gt_arr needed to create bit vectors
-                    // cout<<bcf_gt_allele(cur_g_data[i])<<" ";
+                    // std::cerr<<bcf_gt_allele(cur_g_data[i])<<" ";
                     if (bcf_gt_allele(cur_g_data[i]) != 0)
                     {
                         if (bcf_gt_allele(cur_g_data[i]) == n)
@@ -853,32 +855,7 @@ void CompressionReader::ProcessFixedVariants(bcf1_t *vcf_record, variant_desc_t 
 // ***************************************************************************************************************************************
 void CompressionReader::addVariant(int *gt_data, int ngt_data, variant_desc_t &desc)
 {
-    // for (int i = 0; i < ngt_data; i++)
-    //     cout<<gt_data[i]<<" ";
-    // cout<<endl;
-    // for (int i = 0; i < ngt_data; i++)
-    //     if (gt_data[i] == 0 || gt_data[i] == 1)
-    //     {
-    //         cout<<"0"<<" ";
-    //     }
-    //     else // if(bcf_gt_is_missing(gt_arr[i]) || bcf_gt_allele(gt_arr[i]) == 2)
-    //     {
-    //         cout<<"1"<<" ";
-    //     }
-    // cout<<endl;
-    // for (int i = 0; i < ngt_data; i++)
-    // {
 
-    //     if (gt_data[i] == 1 || gt_data[i] == 2)
-    //     {
-    //         cout<<"1"<<" ";
-    //     }
-    //     else // 0
-    //     {
-    //         cout<<"0"<<" ";
-    //     }
-    // }
-    // cout<<endl;
     desc.chrom = vcf_hdr->id[BCF_DT_CTG][vcf_record->rid].key; // CHROM
 
     desc.pos = vcf_record->pos + 1;                      // POS
@@ -1032,7 +1009,8 @@ uint32_t CompressionReader::setNoVecBlock(GSC_Params &params)
         numThreads = numChunks;
     }
 
-    params.no_gt_threads = numThreads;
+    // params.no_gt_threads = numThreads;
+    params.no_gt_threads = 1;
 
     if(params.var_in_block < 1024)
     {
@@ -1064,7 +1042,7 @@ uint32_t CompressionReader::setNoVecBlock(GSC_Params &params)
     return 0;
 }
 void CompressionReader::CloseFiles(){
-    // cout<<"Closing files"<<endl;
+    // std::cerr<<"Closing files"<<endl;
     if( vec_read_fixed_fields)
     {
         actual_variants.emplace_back(no_actual_variants);

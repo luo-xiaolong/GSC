@@ -317,7 +317,8 @@ void BlockProcess::permute_range_vec(uint64_t id_start, uint64_t id_stop, vector
 
     for (size_t i = 0; i < n_h_samples; ++i)
     {
-        v_perm[perm[i]] = i;
+        // v_perm[perm[i]] = i;
+        v_perm[i] = perm[i];
 
     }
     perm.shrink_to_fit();
@@ -579,12 +580,12 @@ void BlockProcess::ProcessLastBlock(vector<bool> &zeros, vector<bool> &copies, v
    
 
 }
-void BlockProcess::ProcessVariant(vector<uint32_t> &perm,vector<variant_desc_t> &v_vcf_data_io)
+void BlockProcess::ProcessVariant(vector<uint32_t> &perm, vector<variant_desc_t> &v_vcf_data_io)
 {
-    
+
     if (v_vcf_data_io.size() == perm.size())
     {
-        get_perm(perm, perm.size(),v_vcf_data_io);
+        get_perm(perm, perm.size(), v_vcf_data_io);
     }
 }
 inline void BlockProcess::get_perm(vector<uint32_t> perm, int n,vector<variant_desc_t> &v_vcf_data_compress)
@@ -596,9 +597,9 @@ inline void BlockProcess::get_perm(vector<uint32_t> perm, int n,vector<variant_d
     for (int j = 0; j < n; j++)
     {
         int i = perm[j];
-        temp[j] = v_vcf_data_compress[i].pos;
+        temp[i] = v_vcf_data_compress[j].pos;
         // str_alt[j] = v_vcf_data_compress[i].alt;
-        str_ref[j] = v_vcf_data_compress[i].ref;
+        str_ref[i] = v_vcf_data_compress[j].ref;
     }
 
     for (int j = 0; j < n; j++)
@@ -606,6 +607,7 @@ inline void BlockProcess::get_perm(vector<uint32_t> perm, int n,vector<variant_d
         v_vcf_data_compress[j].pos = temp[j];
         // v_vcf_data_compress[j].alt = str_alt[j];
         v_vcf_data_compress[j].ref = str_ref[j];
+        // cout << v_vcf_data_compress[j].pos << " " << v_vcf_data_compress[j].ref << endl;
     }
 }
 void BlockProcess::addSortFieldBlock(fixed_field_block &_fixed_field_block_io,vector<bool> &_all_zeros,vector<bool> &_all_copies,vector<uint32_t> &_comp_pos_copy,

@@ -22,7 +22,7 @@ File_Handle_2::~File_Handle_2()
 }
 
 // ******************************************************************************
-bool File_Handle_2::Open(string _file_name)
+bool File_Handle_2::Open(const string& temp_file2_fname)
 {
 	lock_guard<mutex> lck(mtx);
 
@@ -30,11 +30,12 @@ bool File_Handle_2::Open(string _file_name)
 		fclose(f);
 
 	m_streams.clear();
-	file_name = _file_name+".dbs";
-	f = fopen(file_name.c_str(), input_mode ? "rb" : "wb");
+	// file_name = _file_name+".temp_gsc";
+
+	f = fopen(temp_file2_fname.c_str(), input_mode ? "rb" : "wb");
 
 	if (!f){
-        cout<<"Can't Open: "<<file_name<<" failed"<<endl;
+        std::cerr<<"Can't Open: "<<temp_file2_fname<<" failed"<<endl;
 		return false;
     }
 	setvbuf(f, nullptr, _IOFBF, 64 << 20);
@@ -56,6 +57,7 @@ bool File_Handle_2::Close()
 
 	if (input_mode)
 	{
+		
 		fclose(f);
 		f = nullptr;
 	}
@@ -97,7 +99,7 @@ bool File_Handle_2::serialize()
 		{
 			footer_size += Write(part.offset, f);
 			footer_size += Write(part.size, f);
-            // cout<<stream.second.stream_name<<":"<<part.offset<<":"<<part.size<<endl;
+            // std::cerr<<stream.second.stream_name<<":"<<part.offset<<":"<<part.size<<endl;
 			str_size += part.size;
 		}
 
@@ -107,8 +109,8 @@ bool File_Handle_2::serialize()
 	}
 
 	WriteFixed(footer_size, f);
-	// cout<<footer_size<<endl;
-    std::cout << "genotype compress file (" << file_name << ") created." << std::endl;
+	// std::cerr<<footer_size<<endl;
+    // std::std::cerr << "genotype compress file (" << file_name << ") created." << std::endl;
 	return true;
 }
 
@@ -195,7 +197,7 @@ int File_Handle_2::AddPartPrepare(int stream_id)
 {
 	lock_guard<mutex> lck(mtx);
 	m_streams[stream_id].parts.emplace_back(0, 0);
-    // cout<<m_streams[stream_id].parts.size()<<endl;
+    // std::cerr<<m_streams[stream_id].parts.size()<<endl;
 
 	return (int) m_streams[stream_id].parts.size() - 1;
 }
@@ -206,7 +208,7 @@ bool File_Handle_2::AddPartComplete(int stream_id, int part_id, vector<uint8_t>&
 {
 	
 	lock_guard<mutex> lck(mtx);
-	// cout<<m_streams.size()<<endl;
+	// std::cerr<<m_streams.size()<<endl;
 	m_streams[stream_id].parts[part_id] = part_t(f_offset, v_data.size());
 
 	if (v_data.size())

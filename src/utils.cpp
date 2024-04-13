@@ -52,10 +52,10 @@ long int strtol(const char* str, char** endptr, int base) noexcept
 // ************************************************************************************
 void append_str(vector<uint8_t>& v_comp, const string& x) {
     size_t old_size = v_comp.size();
-    size_t new_size = old_size + x.size() + 1; // 加 1 表示空字符
+    size_t new_size = old_size + x.size() + 1;
     v_comp.reserve(new_size);
     copy(x.begin(), x.end(), std::back_inserter(v_comp));
-    v_comp.emplace_back('\0'); // 在末尾添加空字符
+    v_comp.emplace_back('\0'); 
 
 }
 void read_str(const vector<uint8_t>& v_comp, size_t& pos, string& x)
@@ -68,11 +68,11 @@ void read_str(const vector<uint8_t>& v_comp, size_t& pos, string& x)
 }
 void my_merge(vector<sblock> &a, int start, int mid, int end)
 {
-	int size_left = mid - start + 1; // 左半段数量
-	int size_right = end - mid;		 // 右半段数量
-	vector<sblock> left;			 // 加1是为了多加一个哨兵位
+	int size_left = mid - start + 1; 
+	int size_right = end - mid;		 
+	vector<sblock> left;			 
 	vector<sblock> right;
-	int i = 0, j = 0, k = 0; // 循环计数变量
+	int i = 0, j = 0, k = 0; 
 	for (i = 0; i < size_left; ++i)
 	{
 		left.emplace_back(a[start + i]);
@@ -81,11 +81,11 @@ void my_merge(vector<sblock> &a, int start, int mid, int end)
 	{
 		right.emplace_back(a[mid + 1 + i]);
 	}
-	// 加哨兵
+
 	sblock max(MAX, 0, "shaobing");
 	left.emplace_back(max);
 	right.emplace_back(max);
-	// 按序生成新的数组
+
 	for (k = start, i = 0, j = 0; k <= end; ++k)
 	{
 		if (left[i].val < right[j].val)
@@ -95,6 +95,7 @@ void my_merge(vector<sblock> &a, int start, int mid, int end)
 		}
 		else if (left[i].val == right[j].val)
 		{
+			
 			if (atoi(left[i].s_ref.c_str()) <= atoi(right[j].s_ref.c_str()))
 			{
 				a[k] = left[i];
@@ -122,11 +123,11 @@ void my_merge_sort_r(vector<sblock> &a, int start, int end)
 	{
 		return;
 	}
-	int mid = start + ((end - start) >> 1); // 中间元素下标
-											// 两段数据分开进行排序
+	int mid = start + ((end - start) >> 1); 
+											
 	my_merge_sort_r(a, start, mid);
 	my_merge_sort_r(a, mid + 1, end);
-	// 合并
+	
 	my_merge(a, start, mid, end);
 }
 // *******************************************************************************************************************************
@@ -136,7 +137,7 @@ void my_merge_sort(vector<sblock> &a, int len)
 	{
 		return;
 	}
-	// 递归进行归并排序
+
 	my_merge_sort_r(a, 0, len - 1);
 }
 
@@ -198,7 +199,7 @@ void my_merge_sort(vector<sblock> &a, int len)
 //     if (l >= r) {
 //         return;
 //     }
-//     if (r - l + 1 <= 5) { // 对于小于等于5个元素的子数组，采用插入排序
+//     if (r - l + 1 <= 5) { 
 //         insertion_sort(arr);
 //         return;
 //     }

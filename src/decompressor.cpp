@@ -11,7 +11,7 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
     size_t prev_chrom_size;
     bool query_flag = false;
 
-    // cout << "Begin to extract the genotype sparse matrix" << endl;
+    // std::cerr << "Begin to extract the genotype sparse matrix" << endl;
     if (range == "")
     {
         
@@ -22,15 +22,18 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
             // no_block += (d_where_chrom[i].second - prev_chr_size) / no_comp_bolck + (((d_where_chrom[i].second - prev_chr_size) % no_comp_bolck) ? 1 : 0);
             
         }
+        
 
     }
     else
     {
-        std::regex pattern(R"(^(\w+)(?::(-?\d+))?(?:,(-?\d+))?:?,?$)");
+        std::regex pattern(R"(^([\w.]+)(?::(-?\d+))?(?:,(-?\d+))?:?,?$)");
         std::smatch matches;
         std::string cur_query_chrom;
+        
         if (std::regex_match(range, matches, pattern)) {
             cur_query_chrom = matches[1].str();
+            
             if(matches[2].matched){
                 range_1 = std::stoi(matches[2].str());
                 if(matches[3].matched)
@@ -38,25 +41,28 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
                 else
                     range_2 = MAX;
             }else{
+                
                 if(matches[3].matched){
-                    std::cout << "Invalid input format." << std::endl;
+                    std::cerr << "Invalid input format." << std::endl;
                     return 0;
                 }else{
                     range_1 = 0;
                     range_2 = MAX;
                 }
             }
+            
             // range_1 = (matches[2].matched) ? std::stoi(matches[2].str()) : 0 ;
             // range_2 = (matches[3].matched) ? std::stoi(matches[3].str()) : MAX;
 
-            // std::cout << "Chromosome: " << cur_query_chrom << std::endl;
-            // std::cout << "Start position: " << range_1 << std::endl;
-            // std::cout << "End position: " << range_2 << std::endl;
+            // std::cerr << "Chromosome: " << cur_query_chrom << std::endl;
+            // std::cerr << "Start position: " << range_1 << std::endl;
+            // std::cerr << "End position: " << range_2 << std::endl;
         } else {
-            std::cout << "Invalid input format." << std::endl;
+            
+            std::cerr << "Invalid input format." << std::endl;
 
         }
-
+        
         // string cur_query_chrom = range.substr(0, range.find(':'));
         // auto curr_pos = range.find(':');
         // string_view cur_query_chrom(range.c_str(),curr_pos);
@@ -97,7 +103,7 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
         // }
         if (range_2 < range_1)
         {
-            cout << "error range!" << endl;
+            std::cerr << "error range!" << endl;
             return 0;
         }
 
@@ -116,10 +122,10 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
             end_chunk_id += (decompression_reader.d_where_chrom[i].second - prev_chrom_size + params.no_blocks-1) / params.no_blocks;
             
         }
-
+        
         if (!query_flag)
         {
-            cout << "The specified chromosome wass not found!!!\n";
+            std::cerr << "The specified chromosome wass not found!!!\n";
             return 0;
         }
 
@@ -128,13 +134,13 @@ bool Decompressor::analyzeInputRange(uint32_t & start_chunk_id,uint32_t & end_ch
 
         if (end_chunk < 0)
         {
-            cout << "no var int the range!" << endl;
+            std::cerr << "no var int the range!" << endl;
             return 0;
         }
         start_chunk_id = start_chunk > (int)start_chunk_id ? start_chunk : start_chunk_id;
         end_chunk_id = end_chunk + 1;
 
-        
+       
     }
     return 1;
 }
@@ -267,7 +273,7 @@ bool Decompressor::decompressProcess()
     if(!analyzeInputRange(start_chunk_id,end_chunk_id)){
         return false;
     }
-
+    
     if(!decompression_reader.setStartChunk(start_chunk_id)){
         return false;
     } 
@@ -370,7 +376,11 @@ bool Decompressor::decompressProcess()
     return true;
 }
 bool Decompressor::Close(){
+	if (in_file_name == "-") {
+        if(remove(decompression_reader.fname.c_str()) != 0)
+		    perror("Error deleting temp file");
 
+	}
     if(out_type == file_type::BED_File){
         out_fam.Close();
         out_bed.Close();
@@ -412,7 +422,7 @@ bool Decompressor::Close(){
 //         {
 //             sn_file << v_samples[i] << std::endl;
 //         }
-//         std::cout << "File with list of samples (" << out_samples_file_name + ".sn"
+//         std::cerr << "File with list of samples (" << out_samples_file_name + ".sn"
 //                   << ") created." << std::endl;
 
 //         sn_file.close();
@@ -420,7 +430,7 @@ bool Decompressor::Close(){
 //     }
 //     else
 //     {
-//         std::cout << "Could not open " << out_samples_file_name + ".sn"
+//         std::cerr << "Could not open " << out_samples_file_name + ".sn"
 //                   << "file with list of samples." << std::endl;
 //         return false;
 //     }
@@ -634,7 +644,7 @@ void Decompressor::appendVCF(variant_desc_t &_desc, vector<uint8_t> &_my_str, si
             str.l += _no_haplotypes;
             str.s[str.l] = 0;
             // for(int i=0;i<str.l;i++)
-            //     cout<<(int)str.s[i]<;
+            //     std::cerr<<(int)str.s[i]<;
     
             // bcf_update_genotypes(out_hdr, rec, gt_arr.data(), _no_haplotypes);
             bcf_update_genotypes_fast(out_hdr, rec,str);
@@ -711,7 +721,7 @@ void Decompressor::appendVCFToRec(variant_desc_t &_desc, vector<uint8_t> &_genot
 		        {
 		        case BCF_HT_INT:
                     curr_size = _fields[id].data_size >> 2;
-                    // cout<<curr_size<<endl;
+                    // std::cerr<<curr_size<<endl;
                     bcf_update_info_int32(out_hdr,rec,bcf_hdr_int2id(out_hdr, BCF_DT_ID, _keys[id].key_id), _fields[id].data, curr_size);
 			        break;
 		        case BCF_HT_REAL:
@@ -895,12 +905,12 @@ bool Decompressor::SetVariantToRec(variant_desc_t &desc, vector<field_desc> &fie
             
             genotype = _my_str;
             // temp_fields.clear();
-            // cout<<"start move"<<endl;
+            // std::cerr<<"start move"<<endl;
             temp_fields.resize(fields.size());
             // temp_fields = std::move(fields);
             for(size_t i = 0;i<fields.size();i++)
                 temp_fields[i] = std::move(fields[i]);
-            // cout<<"end move"<<endl;
+            // std::cerr<<"end move"<<endl;
             temp_desc = desc;
             temp_desc.alt = desc.alt.substr(0, desc.alt.find_first_of(','));
             count = 1;
@@ -984,7 +994,7 @@ int Decompressor::BedFormatDecompress(){
     int vec1_start,vec2_start = decompression_reader.vec_len;
     // fields_pos  = 0;
     vector<uint8_t> my_str(standard_block_size);
-    vector<uint32_t> rev_perm(standard_block_size);
+    // vector<uint32_t> rev_perm(standard_block_size);  //2024.1.16注释
     
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
                 rrr_rank_zeros_bit_vector[1](start_chunk_actual_pos) -rrr_rank_copy_bit_vector[0](start_chunk_actual_pos) - 
@@ -1068,7 +1078,7 @@ int Decompressor::BedFormatDecompress(){
     if(no_var % standard_block_size)
     {
         cur_block_id = cur_var / standard_block_size;            
-        reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+        // reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);  //2024.1.16
         
         for(;cur_var < no_var;++cur_var){
             vec2_start = decompression_reader.vec_len;
@@ -1081,9 +1091,9 @@ int Decompressor::BedFormatDecompress(){
             //     memcpy(decomp_data, decomp_data_perm, decompression_reader.vec_len*2);
 
             // for(int i = 0;i<rev_perm.size();i++)
-            //     cout<<rev_perm[i]<<" ";
-            // cout<<endl;
-            decode_perm_rev(vec2_start, rev_perm, decomp_data_perm, decomp_data);
+            //     std::cerr<<rev_perm[i]<<" ";
+            // std::cerr<<endl;
+            decode_perm_rev(vec2_start, sort_perm_io[cur_block_id], decomp_data_perm, decomp_data);//2024.1.16 rev_perm ---> sort_perm_io[cur_block_id]
             for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
             {
                 lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
@@ -1135,7 +1145,7 @@ int Decompressor::BedFormatDecompress(){
     //     appendVCFToRec(temp_desc, genotype, static_cast<uint32_t>(standard_block_size), temp_fields, decompression_reader.keys);
     // }
 
-    cout<< cur_chunk_id << "\r";
+    std::cerr<< cur_chunk_id << "\r";
     fflush(stdout);
 
     for (auto &it : done_unique)
@@ -1159,7 +1169,7 @@ int Decompressor::decompressAll(){
     int vec1_start,vec2_start=decompression_reader.vec_len;
     fields_pos  = 0;
     vector<uint8_t> my_str(standard_block_size);
-    vector<uint32_t> rev_perm(standard_block_size);
+    // vector<uint32_t> rev_perm(standard_block_size);  //2024.1.16注释
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
                 rrr_rank_zeros_bit_vector[1](start_chunk_actual_pos) -rrr_rank_copy_bit_vector[0](start_chunk_actual_pos) - 
                 rrr_rank_copy_bit_vector[1](start_chunk_actual_pos);
@@ -1202,7 +1212,7 @@ int Decompressor::decompressAll(){
     if(no_var % standard_block_size)
     {
         cur_block_id = cur_var / standard_block_size;            
-        reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+        // reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size); //2024.1.16
         
         for(;cur_var < no_var;++cur_var){
             vec2_start = decompression_reader.vec_len;
@@ -1215,9 +1225,9 @@ int Decompressor::decompressAll(){
             //     memcpy(decomp_data, decomp_data_perm, decompression_reader.vec_len*2);
 
             // for(int i = 0;i<rev_perm.size();i++)
-            //     cout<<rev_perm[i]<<" ";
-            // cout<<endl;
-            decode_perm_rev(vec2_start, rev_perm, decomp_data_perm, decomp_data);
+            //     std::cerr<<rev_perm[i]<<" ";
+            // std::cerr<<endl;
+            decode_perm_rev(vec2_start, sort_perm_io[cur_block_id], decomp_data_perm, decomp_data); //2024.1.16 rev_perm ---> sort_perm_io[cur_block_id]
             for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
             {
                 lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
@@ -1237,12 +1247,13 @@ int Decompressor::decompressAll(){
             SetVariantToRec(desc, all_fields_io[fields_pos], decompression_reader.keys, my_str, standard_block_size);
         }
     }
+    
     if(cur_chunk_id == end_chunk_id && count){
-      
+        
         appendVCFToRec(temp_desc, genotype, static_cast<uint32_t>(standard_block_size), temp_fields, decompression_reader.keys);
     }
-
-    cout<< cur_chunk_id << "\r";
+    
+    std::cerr<< cur_chunk_id << "\r";
     fflush(stdout);
 
     for (auto &it : done_unique)
@@ -1266,7 +1277,7 @@ int Decompressor::decompressRange(const string &range)
     uint32_t start_var = 0;
     int vec1_start,vec2_start;
     bool skip_processing = false;
-    vector<uint32_t> rev_perm(standard_block_size);
+    // vector<uint32_t> rev_perm(standard_block_size);  //2024.1.16注释
     vector<uint8_t> my_str(standard_block_size);
 
     uint64_t curr_non_copy_vec_id_offset = start_chunk_actual_pos * 2 - rrr_rank_zeros_bit_vector[0](start_chunk_actual_pos) - 
@@ -1340,7 +1351,8 @@ int Decompressor::decompressRange(const string &range)
         {
             cur_block_id = cur_var / standard_block_size;
                            
-            reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+            // reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size); //2024.1.16
+    
             for(;cur_var < no_var;++cur_var){
                 vec2_start = decompression_reader.vec_len;
                 fill_n(decomp_data, decompression_reader.vec_len*2, 0);
@@ -1351,7 +1363,7 @@ int Decompressor::decompressRange(const string &range)
                 // else
                 //     memcpy(decomp_data, decomp_data_perm, decompression_reader.vec_len*2);
 
-                decode_perm_rev(vec2_start, rev_perm, decomp_data_perm, decomp_data);
+                decode_perm_rev(vec2_start, sort_perm_io[cur_block_id], decomp_data_perm, decomp_data); //2024.1.16 rev_perm ---> sort_perm_io[cur_block_id]
                 for (vec1_start = 0; vec1_start < full_byte_count; ++vec1_start)
                 {
                     lookup_table_ptr = (long long *)(gt_lookup_table[decomp_data[vec1_start]][decomp_data[vec2_start++]]);
@@ -1396,9 +1408,9 @@ int Decompressor::decompressRange(const string &range)
                 if (skip_processing)
                     continue;
                 // for(int i = 0; i < standard_block_size; i++){
-                //     cout << my_str[i] << " ";
+                //     std::cerr << my_str[i] << " ";
                 // }
-                // cout << endl; 
+                // std::cerr << endl; 
                 SetVariant(desc, my_str, standard_block_size);
             }
         }
@@ -1435,16 +1447,17 @@ int Decompressor::decompressRange(const string &range)
         }       
 
         cur_vec_id = (start_chunk_actual_pos + start_var) * 2;
-        bool  tail_flag = true;
+        // bool  tail_flag = true; //2024.1.16注释
         for (size_t cur_var = start_var;cur_var < no_var; cur_var++)
         {
 
             cur_block_id = cur_var / standard_block_size;
-            if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size && tail_flag){
-                reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
-                sort_perm_io[cur_block_id] = rev_perm;
-                tail_flag = false;
-            }
+            // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size && tail_flag){
+            //     reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+            //     sort_perm_io[cur_block_id] = rev_perm;
+            //     tail_flag = false;
+            // }                                  //2024.1.16注释
+            
             vec2_start = decompression_reader.vec_len;
             fill_n(decomp_data, decompression_reader.vec_len*2, 0);
             decoded_vector_row(cur_vec_id++, 0, curr_non_copy_vec_id_offset, decompression_reader.vec_len, 0, decomp_data_perm);
@@ -1503,7 +1516,7 @@ int Decompressor::decompressRange(const string &range)
             delete[] it.second;
         done_unique.clear();
     }
-    cout<< cur_chunk_id << "\r";
+    std::cerr<< cur_chunk_id << "\r";
     fflush(stdout);
     // if (decomp_data)
     //     delete[] decomp_data;
@@ -1614,21 +1627,21 @@ int Decompressor::decompressSampleSmart(const string &range)
                     curr_copy = rrr_rank_copy_bit_vector[0](id + ((parity))) + rrr_rank_copy_bit_vector[1](id);
                 }
                 unique_pos_first_in_block = first_vec_in_block - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
-                if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size)
-                    rev_perm = sort_perm_io[cur_block_id];
-                else
-                    reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size) //2024.1.16注释
+                //     rev_perm = sort_perm_io[cur_block_id];
+                // else
+                reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
 
             //                 for(int i = 0;i<rev_perm.size();i++)
-            //     cout<<rev_perm[i]<<" ";
-            // cout<<endl;
+            //     std::cerr<<rev_perm[i]<<" ";
+            // std::cerr<<endl;
                 for (uint32_t s = 0; s < smpl.no_samples; s++)
                 {
                     for (uint32_t p = 0; p < decompression_reader.ploidy; p++)
                     {
                         ind_id_orig = sampleIDs[s] * decompression_reader.ploidy + p;
                         where = s * decompression_reader.ploidy + p;
-                        // cout<<perm[ind_id_orig]<<endl;
+                        // std::cerr<<perm[ind_id_orig]<<endl;
                         whichByte_whereInRes[where] = std::make_pair(rev_perm[ind_id_orig] >> 3, where); // now original_id_only
                     }
                 }
@@ -1755,10 +1768,10 @@ int Decompressor::decompressSampleSmart(const string &range)
                 }
 
                 unique_pos_first_in_block = first_vec_in_block - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
-                if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size)
-                    rev_perm = sort_perm_io[cur_block_id];
-                else
-                    reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
+                // if(fixed_variants_chunk_io[cur_block_id].data_compress.size() != standard_block_size)  //2024.1.16注释
+                //     rev_perm = sort_perm_io[cur_block_id];                                                  
+                // else
+                reverse_perm(sort_perm_io[cur_block_id], rev_perm, standard_block_size);
 
                 for (uint32_t s = 0; s < smpl.no_samples; s++)
                 {
@@ -1773,8 +1786,8 @@ int Decompressor::decompressSampleSmart(const string &range)
                 whichByte_whereInRes[no_haplotypes] = std::make_pair(0xFFFFFFFF, no_haplotypes); // guard
 
                 std::sort(whichByte_whereInRes.begin(), whichByte_whereInRes.end());
-                // cout<<"prev_block_id:"<<prev_block_id<<endl;
-                // cout<<"start_chunk_actual_pos:"<<start_chunk_actual_pos<<endl;
+                // std::cerr<<"prev_block_id:"<<prev_block_id<<endl;
+                // std::cerr<<"start_chunk_actual_pos:"<<start_chunk_actual_pos<<endl;
                 prev_block_id = cur_block_id;
                 // Get vectors from all block
                 
@@ -1862,7 +1875,7 @@ int Decompressor::decompressSampleSmart(const string &range)
         if(cur_chunk_id == end_chunk_id && count)
             appendVCF(temp_desc, genotype, static_cast<size_t> (no_haplotypes));
     }
-    cout<< cur_chunk_id << "\r";
+    std::cerr<< cur_chunk_id << "\r";
     fflush(stdout);
     if (resUnique)
         delete[] resUnique;
@@ -1915,7 +1928,7 @@ uint8_t Decompressor::extract_partial_bytes(uint64_t vec_id, std::vector<std::pa
         curr_non_copy_vec_id = vec_id - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
 
         curr_non_copy_vec_id = curr_non_copy_vec_id - tmp - 1;
-        // cout<<"unique_pos_first_in_block:"<<curr_non_copy_vec_id<<" "<<unique_pos_first_in_block<<endl;
+        // std::cerr<<"unique_pos_first_in_block:"<<curr_non_copy_vec_id<<" "<<unique_pos_first_in_block<<endl;
         is_uniqe_id = false;
         curr_copy++;
         memcpy(resAll + vec_start, resUnique + (curr_non_copy_vec_id - unique_pos_first_in_block) * no_haplotypes, no_haplotypes);
@@ -2015,7 +2028,7 @@ uint8_t Decompressor::extract_partial_bytes(uint64_t vec_id, std::vector<std::pa
     //         curr_non_copy_vec_id = vec_id - curr_zeros - curr_copy - curr_non_copy_vec_id_offset;
 
     //         curr_non_copy_vec_id = curr_non_copy_vec_id - tmp - 1;
-    //         // cout<<"unique_pos_first_in_block:"<<curr_non_copy_vec_id<<" "<<unique_pos_first_in_block<<endl;
+    //         // std::cerr<<"unique_pos_first_in_block:"<<curr_non_copy_vec_id<<" "<<unique_pos_first_in_block<<endl;
     //         is_uniqe_id = false;
     //         curr_copy++;
     //         memcpy(resAll + vec_start, resUnique + (curr_non_copy_vec_id - unique_pos_first_in_block) * no_haplotypes, no_haplotypes);
@@ -2025,7 +2038,7 @@ uint8_t Decompressor::extract_partial_bytes(uint64_t vec_id, std::vector<std::pa
     //     }
     //     else if (zeros_bit_vector[1][vector])
     //     {
-    //         cout<<zeros_bit_vector[1][vector]<<":"<<zeros_bit_vector[0][vector]<<":"<<vector<<":"<<vec_id<<endl;
+    //         std::cerr<<zeros_bit_vector[1][vector]<<":"<<zeros_bit_vector[0][vector]<<":"<<vector<<":"<<vec_id<<endl;
     //         is_uniqe_id = false;
     //         curr_zeros++;
     //         if (!full_decode)
@@ -2259,25 +2272,27 @@ bool Decompressor::splitFileWriting(int file_num){
             write_mode[3] = compression_level;
             write_mode[4] = '\0';
         }
-        if (out_file_name != "")
+        if (out_file_name != "-")
         {
-            char *gz_fname = (char *)malloc(strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5);
+            // char *gz_fname = (char *)malloc(strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5);
 
             if (out_type == file_type::VCF_File)
             {
-                snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.vcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
-                split_files[i] = hts_open(gz_fname, "w");
+                // snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.vcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
+                // split_files[i] = hts_open(gz_fname, "w");
+                split_files[i] = hts_open(out_file_name.c_str(), "w");
             }
             else
             {
 
-                snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.bcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
-                split_files[i] = hts_open(gz_fname, write_mode);
+                // snprintf(gz_fname, strlen((out_file_name + decompression_reader.d_where_chrom[i].first).c_str()) + 5, "%s.bcf", (out_file_name + decompression_reader.d_where_chrom[i].first).c_str());
+                // split_files[i] = hts_open(gz_fname, write_mode);
+                split_files[i] = hts_open(out_file_name.c_str(), write_mode);
             }
 
-            free(gz_fname);
+            // free(out_file_name);
             if (!split_files[i]){
-                std::cout << "could not open " << split_files[i] << " file" << std::endl;
+                std::cerr << "could not open " << split_files[i] << " file" << std::endl;
                 return false;
             }
             else
@@ -2301,20 +2316,24 @@ bool Decompressor::OpenForWriting()
     }
 
 
-    if (out_file_name != "")
+    if (out_file_name != "-")
     {
-        char *gz_fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
+        // char *gz_fname = (char *)malloc(strlen(out_file_name.c_str()) + 5);
 
         if (out_type == file_type::VCF_File)
         {
-            snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.vcf", out_file_name.c_str());
-            out_file = hts_open(gz_fname, "w");
+            // snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.vcf", out_file_name.c_str());
+            // out_file = hts_open(gz_fname, "w");
+            out_file = hts_open(out_file_name.c_str(), "w");
+            
         }
         else if(out_type == file_type::BCF_File)
         {
 
-            snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.bcf", out_file_name.c_str());
-            out_file = hts_open(gz_fname, write_mode);
+            // snprintf(gz_fname, strlen(out_file_name.c_str()) + 5, "%s.bcf", out_file_name.c_str());
+            // out_file = hts_open(gz_fname, write_mode);
+            out_file = hts_open(out_file_name.c_str(), write_mode);
+            
         }
         else{
             
@@ -2334,7 +2353,7 @@ bool Decompressor::OpenForWriting()
 		        return false;
 	        }
         }
-        free(gz_fname);
+        // free(out_file_name);
     }
     else
     {
@@ -2364,7 +2383,7 @@ bool Decompressor::OpenForWriting()
     }
     if(out_type != file_type::BED_File){
         if (!out_file){
-            std::cout << "could not open " << out_file << " file" << std::endl;
+            std::cerr << "could not open " << out_file << " file" << std::endl;
             return false;
         }
         else
@@ -2432,7 +2451,7 @@ int Decompressor::initOut()
         while (getline(ss, item, delim))
         {
             fam_line = "0\t"+ item +"\t0\t0\t0\t-9\n";
-            // cout<< fam_line << endl;
+            // std::cerr<< fam_line << endl;
             out_fam.Write(fam_line.c_str(), fam_line.size());
         }
         WriteBEDMagicNumbers();

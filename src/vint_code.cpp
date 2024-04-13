@@ -2,10 +2,7 @@
 #include <iostream>
 
 namespace vint_code {
-// 从输入缓冲区中读取一个VINT
-// buffer: 输入缓冲区
-// pos: 当前读取位置，函数结束后会修改为下一个读取位置
-// 返回值: 解码得到的整数
+
 
 uint32_t ReadVint(std::vector<uint8_t>& buffer, size_t& pos)
 {
@@ -30,10 +27,7 @@ uint32_t ReadVint(std::vector<uint8_t>& buffer, size_t& pos)
     return value;
 }
 
-// 将一个VINT写入输出缓冲区
-// value: 待写入的整数
-// buffer: 输出缓冲区
-// 返回值: 写入的字节数
+
 size_t WriteVint(uint32_t value, std::vector<uint8_t>& buffer)
 {
     size_t size = 0;
