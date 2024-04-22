@@ -16,9 +16,9 @@ LIBS_DIR=lib
 # LIBS_D= -L/usr/lib/x86_64-linux-gnu/ -lpython3.8 
 INCLUDES_DIR=include 
 # -I/usr/include/python3.8 -I/usr/local/lib/python3.8/dist-packages/numpy/core/include/
-CFLAGS=-Wall -O3 -g -m64 -std=c++17 -pthread -I $(INCLUDES_DIR) -mpopcnt 
+CFLAGS=-Wall -O3 -g -m64 -std=c++14 -pthread -I $(INCLUDES_DIR) -mpopcnt 
 #CLINK=-O3 -lm -std=c++11 -lpthread -mpopcnt -lz
-CLINK=-O3 -lm -std=c++17 -lpthread -mavx -mpopcnt -lz -lbz2 -llzma 
+CLINK=-O3 -lm -std=c++14 -lpthread -mavx -mpopcnt -lz -lbz2 -llzma
 
 ifeq ($(uname_S),Linux)
     CC=g++      
