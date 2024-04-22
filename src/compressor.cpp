@@ -525,6 +525,7 @@ bool Compressor::CompressProcess()
 
                         prev_chrom = v_vcf_data_io[0].chrom;
                         if(no_curr_chrom_block){
+
                             sortVarBlockQueue.Push(chunk_id,fixed_field_block_io);
                             // compressFixedFields(fixed_field_block_io);
                             toal_all_size += fixed_field_block_io.gt_block.size();
@@ -541,6 +542,10 @@ bool Compressor::CompressProcess()
                             cur_chunk_actual_pos += (uint32_t)v_vcf_data_io.size();
                             block_process.addSortFieldBlock(fixed_field_block_io,all_zeros,all_copies,comp_pos_copy,zeros_only, copies, origin_of_copy,samples_indexes,v_vcf_data_io,prev_pos);
                             no_curr_chrom_block++;
+                            if(num_rows % block_size){
+                                vint_last_perm.emplace(chunk_id,vint_code::EncodeArray(perm));
+                            }
+
                             if(no_curr_chrom_block == params.no_blocks){
                                 sortVarBlockQueue.Push(chunk_id,fixed_field_block_io);
                                 // compressFixedFields(fixed_field_block_io);
@@ -554,6 +559,7 @@ bool Compressor::CompressProcess()
                             }
                         }
                         else{
+
                             sortVarBlockQueue.Complete();
                         }
                             
@@ -563,6 +569,11 @@ bool Compressor::CompressProcess()
                         cur_chunk_actual_pos += (uint32_t)v_vcf_data_io.size();
                         block_process.addSortFieldBlock(fixed_field_block_io,all_zeros,all_copies,comp_pos_copy,zeros_only, copies, origin_of_copy,samples_indexes,v_vcf_data_io,prev_pos);
                         no_curr_chrom_block++;
+
+                        if(num_rows % block_size){
+                            vint_last_perm.emplace(chunk_id,vint_code::EncodeArray(perm));
+                        }
+
                         if(no_curr_chrom_block == params.no_blocks){
                             sortVarBlockQueue.Push(chunk_id,fixed_field_block_io);
                             // compressFixedFields(fixed_field_block_io);
@@ -574,12 +585,11 @@ bool Compressor::CompressProcess()
                             chunk_id++;
                             fixed_field_block_io.Clear();
                         }
+                        
 
                     }   
-                    if(num_rows % block_size){
-                        
-                        vint_last_perm.emplace(chunk_id,vint_code::EncodeArray(perm));
-                    }
+                    
+
            
                 }         
                 unlock_gt_block_process();                   
@@ -628,6 +638,7 @@ bool Compressor::CompressProcess()
         CBSCWrapper bsc;
 		bsc.InitCompress(p_bsc_fixed_fields);
 		bsc.Compress(v_desc, v_desc_compressed);
+        // zstd::zstd_compress(v_desc, v_desc_compressed);
         file_handle2->AddParamsPart(stream_id,v_desc_compressed);
         file_handle2->Close();
     }
@@ -791,10 +802,12 @@ void Compressor::compress_other_fileds(SPackage& pck, vector<uint8_t>& v_compres
         CBSCWrapper *cbsc = v_bsc_data[pck.key_id];
         if(keys[pck.key_id].type != BCF_HT_INT){
             cbsc->Compress(pck.v_data, v_compressed);
+            // zstd::zstd_compress(pck.v_data, v_compressed);
         }
         else{
             Encoder(pck.v_data, v_tmp);
             cbsc->Compress(v_tmp, v_compressed);
+            // zstd::zstd_compress(v_tmp, v_compressed);
         }
             
         // cbsc->Compress(pck.v_data, v_compressed);
@@ -817,6 +830,7 @@ void Compressor::compress_other_fileds(SPackage& pck, vector<uint8_t>& v_compres
 	copy_n((uint8_t*)pck.v_size.data(), v_tmp.size(), v_tmp.data());
     
     cbsc_size->Compress(v_tmp, v_compressed);
+    // zstd::zstd_compress(v_tmp, v_compressed);
     
 	file_handle2->AddPartComplete(pck.stream_id_size, pck.part_id, v_compressed);
 
@@ -958,7 +972,15 @@ bool Compressor::compress_meta(vector<string> v_samples,const string& v_header)
 		bsc.InitCompress(p_bsc_meta);
        
 		bsc.Compress(get<0>(data), get<1>(data));
-        
+
+
+        // zstd::zstd_compress(get<0>(data), get<1>(data));
+
+        // LZMACompress::Compress(get<0>(data), get<1>(data), 9);
+
+        // lz4:: lz4_compress(get<0>(data), get<1>(data), 12);
+        // BrotliUtils::compressData(get<0>(data), get<1>(data));
+        // std::cerr<<get<0>(data).size()<<":"<<get<1>(data).size()<<endl;    
 		// lzma2::lzma2_compress(get<0>(data), get<1>(data), get<2>(data), 10);
 		// std::cerr << get<2>(data) << " size: " << get<1>(data).size() << endl;
 
@@ -1032,12 +1054,28 @@ bool Compressor::compressFixedFields(fixed_field_block &fixed_field_block_io){
         make_tuple(ref(fixed_field_block_io.qual), ref(fixed_field_block_compress.qual), "qual"),          
         make_tuple(ref(fixed_field_block_io.pos), ref(fixed_field_block_compress.pos),  "pos"),
         make_tuple(ref(fixed_field_block_io.ref), ref(fixed_field_block_compress.ref), "ref"),
+        // make_tuple(ref(fixed_field_block_io.gt_block), ref(fixed_field_block_compress.gt_block), "GT"),
     })
     {         
+
+        //BSC
+
         CBSCWrapper cbsc;
         cbsc.InitCompress(p_bsc_fixed_fields);
         cbsc.Compress(get<0>(data), get<1>(data));   
-        // std::cerr<<get<0>(data).size()<<":"<<get<1>(data).size()<<endl;      
+
+        //ZSTD  
+
+        // zstd::zstd_compress(get<0>(data), get<1>(data));
+
+        //LZMA
+
+        // LZMACompress::Compress(get<0>(data), get<1>(data), 9);
+
+        // lz4:: lz4_compress(get<0>(data), get<1>(data), 12);
+        // BrotliUtils::compressData(get<0>(data), get<1>(data));
+
+        // std::cerr<<get<0>(data).size()<<":"<<get<1>(data).size()<<endl;    
     }
     if(fixed_field_block_io.gt_block.size() < (2<<20)){
         CBSCWrapper cbsc;
