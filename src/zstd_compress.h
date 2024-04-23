@@ -5,7 +5,7 @@
 // #include <zstd.h>
 
 // #include <thread>
-#include "zstd.h"
+#include "../include/zstd-1.5.2/lib/zstd.h"
 using namespace std;
 namespace zstd {
     bool zstd_compress(const std::vector<uint8_t>& srcContent, std::vector<uint8_t>& cBuff);
