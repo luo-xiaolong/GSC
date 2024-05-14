@@ -149,5 +149,5 @@ To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ./gsc decompress -M --in toy/toy_lossy.gsc --out toy/toy_lossy.vcf
 ```
 ## Citations
-- **bio.tools ID**: `biotools:gsc_genotype_sparse_compression`
-- **Research Resource Identifier (RRID)**: `RRID:SCR_025071`
+- **bio.tools ID**: `gsc_genotype_sparse_compression`
+- **Research Resource Identifier (RRID)**: `SCR_025071`
