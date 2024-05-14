@@ -1,5 +1,6 @@
 # GSC (Genotype Sparse Compression)
 Genotype Sparse Compression (GSC) is an advanced tool for lossless compression of VCF files, designed to efficiently store and manage VCF files in a compressed format. It accepts VCF/BCF files as input and utilizes advanced compression techniques to significantly reduce storage requirements while ensuring fast query capabilities. In our study, we successfully compressed the VCF files from the 1000 Genomes Project (1000Gpip3), consisting of 2504 samples and 80 million variants, from an uncompressed VCF file of 803.70GB to approximately 1GB.
+
 ## Requirements 
 ### GSC requires:
 
@@ -147,3 +148,6 @@ To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
 ./gsc decompress -M --in toy/toy_lossy.gsc --out toy/toy_lossy.vcf
 ```
+## Citations
+- **bio.tools ID**: `biotools:gsc_genotype_sparse_compression`
+- **Research Resource Identifier (RRID)**: `RRID:SCR_025071`
