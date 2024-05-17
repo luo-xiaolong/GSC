@@ -14,15 +14,15 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create project directory and set it as the working directory
-WORKDIR /usr/src/Project
+WORKDIR /home/Project_gsc
 
 # Clone the GSC project and build it
 RUN git clone https://github.com/luo-xiaolong/GSC.git && \
     cd GSC && \
+    make clean && \
     make
 
 # Set the working directory for the container
-WORKDIR /usr/src/Project/GSC
+WORKDIR /home/Project_gsc/GSC
 
-# Set the default command to bash
-CMD ["bash"]
+
