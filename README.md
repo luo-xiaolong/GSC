@@ -10,7 +10,7 @@ Genotype Sparse Compression (GSC) is an advanced tool for lossless compression o
 - **Build System**: Make build system is necessary for compiling GSC.
 
 - **Operating System**: GSC supports 64-bit operating systems, including:
-  - Linux (Ubuntu)
+  - Linux (Ubuntu 18.04)
   
 ## Installation
 To download, build and install GSC use the following commands.
@@ -147,6 +147,12 @@ lossy decompression:
 To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
 ./gsc decompress -M --in toy/toy_lossy.gsc --out toy/toy_lossy.vcf
+```
+## Dockerfile
+Dockerfile can be used to build a Docker image with all necessary dependencies and GSC compressor. The image is based on Ubuntu 18.04. To build a Docker image and run a Docker container, you need Docker Desktop (https://www.docker.com). Example commands (run it within a directory with Dockerfile):
+```bash
+docker build -t gsc_project .
+docker run -it gsc_project
 ```
 ## Citations
 - **bio.tools ID**: `gsc_genotype_sparse_compression`
