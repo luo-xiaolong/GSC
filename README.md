@@ -157,3 +157,4 @@ docker run -it gsc_project
 ## Citations
 - **bio.tools ID**: `gsc_genotype_sparse_compression`
 - **Research Resource Identifier (RRID)**: `SCR_025071`
+- **Doi**:`https://doi.org/10.48546/WORKFLOWHUB.WORKFLOW.887.1`
