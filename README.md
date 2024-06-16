@@ -87,7 +87,7 @@ Options:
 
     Filter options (applicable in lossy compression mode only): 
 
-        -r,  --range [X]        Specify range in format [start],[end] (e.g., -r 4999756,4999852).
+        -r,  --range [X]        Specify range in format [chr]:[start],[end] (e.g., -r chr1:4999756,4999852).
         -s,  --samples [X]      Samples separated by comms (e.g., -s HG03861,NA18639) OR '@' sign followed by the name of a file with sample name(s) separated by whitespaces (for exaple: -s @file_with_IDs.txt). By default all samples/individuals are decompressed. 
         --header-only           Output only the header of the VCF/BCF.
         --no-header             Output without the VCF/BCF header (only genotypes).
@@ -164,6 +164,30 @@ To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
 ./gsc decompress -M --in toy/toy_lossy.gsc --out toy/toy_lossy.vcf
 ```
+### Query
+#### Variant-based query
+Retrieve entries for chromosome 20 with POS ranging from 1 to 1,000,000, and output to the toy/query_toy_r_20_3_1000000.vcf file.
+
+```bash
+./gsc decompress -M --range 20:1,1000000 --in toy/toy_lossy.gsc --out toy/query_toy_20_3_1000000.vcf
+```
+Retrieve entries for chromosome 20 with POS ranging from 1 to 1,000,000, and output to the terminal interface.
+```bash
+./gsc decompress -M --range 20:1,1000000 --in toy/toy_lossy.gsc
+```
+#### sample-based query
+Retrieve genotype columns for samples named NA00001 and NA00002, and output to the toy/query_toy_s_NA00001_NA00002.vcf file.
+```bash
+./gsc decompress -M --samples NA00001,NA00002 --in toy/toy_lossy.gsc --out toy/query_toy_s_NA00001_NA00002.vcf
+```
+or
+
+The names NA00001 and NA00002 are stored in the toy/samples_name_file.
+```bash
+./gsc decompress -M --samples @toy/samples_name_file --in toy/toy_lossy.gsc --out toy/query_toy_s_NA00001_NA00002.vcf
+```
+#### Note
+You can also perform mixed queries based on sample names and variants.
 
 ## Citations
 - **bio.tools ID**: `gsc_genotype_sparse_compression`
