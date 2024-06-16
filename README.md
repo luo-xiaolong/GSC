@@ -144,7 +144,9 @@ The input file format is VCF. The commands are similar to those used for lossles
    ```bash
    ./gsc compress -M --in toy/toy.vcf --out toy/toy_lossy.gsc
    ```
-   Or using redirection:
+   or 
+  
+   using redirection:
    ```bash
    ./gsc compress -M --out toy/toy_lossy.gsc < toy/toy.vcf
    ``` 
