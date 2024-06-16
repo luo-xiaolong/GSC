@@ -104,9 +104,9 @@ Options:
 ```
 ## Example
 There is an example VCF/VCF.gz/BCF file, `toy.vcf`/`toy.vcf.gz`/`toy.bcf`, in the toy folder, which can be used to test GSC
-### compress
+### Compress
 
-#### lossless compression:
+#### Lossless compression:
 The input file format is VCF. You can compress a VCF file in lossless mode using one of the following methods:
 1. **Explicit input and output file parameters**:
    
@@ -135,7 +135,7 @@ The input file format is VCF. You can compress a VCF file in lossless mode using
 This will create a file:
 * `toy_lossless.gsc` - The compressed archive of the entire VCF file.
 
-#### lossy compression:
+#### Lossy compression:
 
 The input file format is VCF. The commands are similar to those used for lossless compression, with the addition of the `-M` parameter to enable lossy compression.
 
@@ -146,7 +146,7 @@ The input file format is VCF. The commands are similar to those used for lossles
    ```
    or 
   
-   using redirection:
+   Using redirection:
    ```bash
    ./gsc compress -M --out toy/toy_lossy.gsc < toy/toy.vcf
    ``` 
@@ -154,13 +154,13 @@ The input file format is VCF. The commands are similar to those used for lossles
    * `toy_lossy.gsc` - The compressed archive of the entire VCF file is implemented with lossy compression. It only retains the 'GT' subfield within the INFO and FORMAT fields, and excludes all other subfields..
     
 ### Decompress   (The commands are similar to those used for compression)
-lossless decompression:
+Lossless decompression:
 
 To decompress the compressed toy_lossless.gsc into a VCF file named toy_lossless.vcf:
 ```bash
 ./gsc decompress --in toy/toy_lossless.gsc --out toy/toy_lossless.vcf
 ```
-lossy decompression:
+Lossy decompression:
 
 To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
@@ -177,7 +177,7 @@ Retrieve entries for chromosome 20 with POS ranging from 1 to 1,000,000, and out
 ```bash
 ./gsc decompress -M --range 20:1,1000000 --in toy/toy_lossy.gsc
 ```
-#### sample-based query
+#### Sample-based query
 Retrieve genotype columns for samples named NA00001 and NA00002, and output to the toy/query_toy_s_NA00001_NA00002.vcf file.
 ```bash
 ./gsc decompress -M --samples NA00001,NA00002 --in toy/toy_lossy.gsc --out toy/query_toy_s_NA00001_NA00002.vcf
