@@ -154,13 +154,13 @@ The input file format is VCF. The commands are similar to those used for lossles
    * `toy_lossy.gsc` - The compressed archive of the entire VCF file is implemented with lossy compression. It only retains the 'GT' subfield within the INFO and FORMAT fields, and excludes all other subfields..
     
 ### Decompress   (The commands are similar to those used for compression)
-Lossless decompression:
+#### Lossless decompression:
 
 To decompress the compressed toy_lossless.gsc into a VCF file named toy_lossless.vcf:
 ```bash
 ./gsc decompress --in toy/toy_lossless.gsc --out toy/toy_lossless.vcf
 ```
-Lossy decompression:
+#### Lossy decompression:
 
 To decompress the compressed toy_lossy.gsc into a VCF file named toy_lossy.vcf:
 ```bash
