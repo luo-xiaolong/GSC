@@ -35,7 +35,7 @@ void DecompressionReader::out_perm(vector<uint32_t> &perm, vector<variant_desc_t
 }
 
 // *******************************************************************************************************************************
-bool DecompressionReader::OpenReading(const string &in_file_name){
+bool DecompressionReader::OpenReading(const string &in_file_name, const bool &_decompression_mode_type){
 	
 	CBSCWrapper::InitLibrary(p_bsc_features);
 	fname = in_file_name;
@@ -43,7 +43,6 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 		std::istream* in_stream = &std::cin;
 
 		fname = in_file_name + ".decom_tmp_gsc";
-		cout<< fname<<endl;
 		{
 			std::ofstream temp_file(fname, std::ios::binary | std::ios::trunc);
 			if (!temp_file) {
@@ -51,11 +50,11 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 				return 1;
 			}
 			const std::streamsize bufferSize = 1024 * 1024;
-			char buffer[bufferSize]; // 使用std::vector作为缓冲区
+			char buffer[bufferSize]; 
  			while (in_stream->read(buffer, bufferSize) || in_stream->gcount() > 0) {
         		temp_file.write(buffer, in_stream->gcount());
     		}
-			// 关闭临时文件
+
 			temp_file.close();
 		}
 	}
@@ -76,7 +75,7 @@ bool DecompressionReader::OpenReading(const string &in_file_name){
 	in.read((char *)&mode_type, sizeof(bool));
 	in.read((char *)&other_fields_offset, sizeof(uint64_t));
 	in.read((char *)&sdsl_offset, sizeof(uint64_t));
-	if(mode_type){
+	if(mode_type && _decompression_mode_type){
 		temp_file2_fname = fname + ".tmp";
 		in.seekg(other_fields_offset, std::ios::beg);
 		std::ofstream out(temp_file2_fname, std::ios::binary | std::ios::trunc);
@@ -312,12 +311,12 @@ bool DecompressionReader::OpenReadingPart2(const string &in_file_name){
 	CBSCWrapper bsc;
 	bsc.InitDecompress();
 	bsc.Decompress(part2_params_data, v_desc);
-	uint32_t actual_varians_size = 0;
-	read(v_desc, pos_part2_params, actual_varians_size);
-	actual_varians.resize(actual_varians_size);
+	uint32_t actual_variants_size = 0;
+	read(v_desc, pos_part2_params, actual_variants_size);
+	actual_variants.resize(actual_variants_size);
 	
-	for(uint32_t i = 0; i < actual_varians_size; i++){
-		read(v_desc, pos_part2_params, actual_varians[i]);
+	for(uint32_t i = 0; i < actual_variants_size; i++){
+		read(v_desc, pos_part2_params, actual_variants[i]);
 		
 	}
 	read(v_desc, pos_part2_params, no_keys);

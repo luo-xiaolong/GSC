@@ -20,4 +20,4 @@ src/compressor.o: src/compressor.cpp src/compressor.h src/gsc_params.h \
  include/htslib/kstring.h include/htslib/hts_endian.h \
  include/htslib/hts.h src/queues.h src/variant.h src/utils.h \
  include/htslib/kstring.h include/htslib/bgzf.h src/block_processing.h \
- src/vint_code.h src/zstd_compress.h
+ src/vint_code.h src/zstd_compress.h src/../include/zstd-1.5.2/lib/zstd.h

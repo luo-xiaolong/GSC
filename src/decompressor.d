@@ -19,5 +19,6 @@ src/decompressor.o: src/decompressor.cpp src/decompressor.h \
  include/htslib/hts_defs.h include/htslib/hts_log.h \
  include/htslib/kstring.h include/htslib/hts_endian.h \
  include/htslib/hts.h src/utils.h include/htslib/kstring.h \
- include/htslib/bgzf.h src/zstd_compress.h src/vint_code.h \
+ include/htslib/bgzf.h src/zstd_compress.h \
+ src/../include/zstd-1.5.2/lib/zstd.h src/vint_code.h \
  include/cpp-mmf/memory_mapped_file.hpp src/samples.h

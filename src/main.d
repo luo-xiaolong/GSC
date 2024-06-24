@@ -20,6 +20,7 @@ src/main.o: src/main.cpp src/gsc_params.h src/defs.h src/bsc.h \
  include/sdsl/select_support.hpp include/sdsl/rank_support.hpp \
  include/sdsl/rank_support_v.hpp include/sdsl/rank_support_v5.hpp \
  include/sdsl/rank_support_scan.hpp include/sdsl/select_support_scan.hpp \
- include/sdsl/hyb_vector.hpp src/zstd_compress.h src/decompressor.h \
+ include/sdsl/hyb_vector.hpp src/zstd_compress.h \
+ src/../include/zstd-1.5.2/lib/zstd.h src/decompressor.h \
  src/decompression_reader.h include/cpp-mmf/memory_mapped_file.hpp \
  src/samples.h

@@ -73,6 +73,7 @@ class Decompressor {
     char compression_level;
     file_type out_type;
     bool out_genotypes;
+    bool decompression_mode_type;
 
     uint32_t start_chunk_id = 0;
     uint32_t end_chunk_id = 0;
@@ -283,7 +284,7 @@ public:
         // range = "";
 
         records_to_process = UINT32_MAX;
-
+        decompression_mode_type = false;
         // out_genotypes = true;
         
         // out_ohter_fields = false;
@@ -314,7 +315,7 @@ public:
         out_type = params.out_type;
 
         out_file_name = params.out_file_name;
-
+        decompression_mode_type = false;
         // // out_samples_name = params.out_samples_name;
         
         // // out_samples_file_name = params.out_samples_file_name;

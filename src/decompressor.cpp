@@ -244,13 +244,18 @@ bool Decompressor::decompressProcess()
     
     decompression_reader.SetNoThreads(params.no_threads);
     // unique_ptr<CompressedFileLoading> cfile(new CompressedFileLoading());
-    if(!decompression_reader.OpenReading(in_file_name))
-        return false;
+
     if(params.compress_mode == compress_mode_t::lossless_mode){
+        decompression_mode_type = true;
+    }
+    // unique_ptr<CompressedFileLoading> cfile(new CompressedFileLoading());
+    if(!decompression_reader.OpenReading(in_file_name, decompression_mode_type))
+        return false;
+    if(decompression_mode_type) {
         if(!decompression_reader.OpenReadingPart2(in_file_name))
             return false;
-    }
-    
+        
+    }    
     decompression_reader.decompress_meta(v_samples, header);
     
     if(analyzeInputSamples(v_samples)) // Retrieving sample name.
@@ -290,11 +295,11 @@ bool Decompressor::decompressProcess()
             }else{
                 if(params.compress_mode == compress_mode_t::lossless_mode){
                     
-                    uint32_t no_actual_varians =  decompression_reader.actual_varians[cur_chunk_id-1];
+                    uint32_t no_actual_variants =  decompression_reader.actual_variants[cur_chunk_id-1];
 
                     decompressAll();
 
-                    for(uint32_t i = 0; i < no_actual_varians; ++i)
+                    for(uint32_t i = 0; i < no_actual_variants; ++i)
                         for(size_t j = 0; j < decompression_reader.keys.size(); ++j){
                             if(all_fields_io[i][j].data_size)
                             {
@@ -333,9 +338,9 @@ bool Decompressor::decompressProcess()
             }
             if(params.compress_mode == compress_mode_t::lossless_mode){
 
-                uint32_t no_actual_varians =  decompression_reader.actual_varians[cur_chunk_id];
+                uint32_t no_actual_variants =  decompression_reader.actual_variants[cur_chunk_id];
                 
-                while (no_actual_varians--)
+                while (no_actual_variants--)
                 {
                     all_fields.emplace_back(vector<field_desc>(decompression_reader.keys.size()));
                     decompression_reader.GetVariants(all_fields.back());

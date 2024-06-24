@@ -79,7 +79,7 @@ class DecompressionReader {
 	uint32_t no_keys;
 	vector<key_desc> keys;
 	int key_gt_id;
-	vector<uint32_t> actual_varians;
+	vector<uint32_t> actual_variants;
 	vector<CBuffer> v_i_buf;
 	vector<SPackage*> v_packages;
 	mutex m_packages;
@@ -147,7 +147,7 @@ public:
 		delete decomp_part_queue;
     }
 
-	bool OpenReading(const string &in_file_name);
+	bool OpenReading(const string &in_file_name, const bool &_decompression_mode_type);
 	bool OpenReadingPart2(const string &in_file_name);
 	void InitDecompressParams();
 	void decompress_meta(vector<string> &v_samples, string &header);

@@ -20,4 +20,5 @@ src/decompression_reader.o: src/decompression_reader.cpp \
  include/htslib/kstring.h include/htslib/hts_endian.h \
  include/htslib/hts.h src/utils.h include/htslib/kstring.h \
  include/htslib/bgzf.h src/bsc.h include/libbsc.h src/zstd_compress.h \
- src/vint_code.h include/cpp-mmf/memory_mapped_file.hpp
+ src/../include/zstd-1.5.2/lib/zstd.h src/vint_code.h \
+ include/cpp-mmf/memory_mapped_file.hpp
