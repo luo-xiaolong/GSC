@@ -1009,8 +1009,8 @@ uint32_t CompressionReader::setNoVecBlock(GSC_Params &params)
         numThreads = numChunks;
     }
 
-    // params.no_gt_threads = numThreads;
-    params.no_gt_threads = 1;
+    params.no_gt_threads = numThreads;
+    // params.no_gt_threads = 1;
 
     if(params.var_in_block < 1024)
     {
